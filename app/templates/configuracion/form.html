@@ -14,7 +14,8 @@
 <section class="card config-section" id="imap-config">
   <h2>Correo IMAP</h2>
   <p class="muted">
-    Configura tu buzón para enviar y sincronizar correos en los expedientes.
+    Configura tu buzón para enviar y sincronizar correos en los expedientes. Si todos los buzones usan el mismo
+    servidor, cambia solo usuario/email y contraseña.
     {% if imap_configurado %}
     <span class="badge">Configurado</span>
     {% endif %}
@@ -74,6 +75,43 @@
         </option>
       </select>
     </div>
+    <div class="field field-full">
+      <label class="checkbox-row">
+        <input type="checkbox" name="imap_guardar_copia_enviados"
+               {% if config.imap_guardar_copia_enviados %}checked{% endif %}>
+        Guardar copia en carpeta IMAP Enviados
+      </label>
+      <small class="muted">Si está marcado, Estudio guardará también una copia del correo enviado en la carpeta seleccionada arriba.</small>
+    </div>
+
+    <div class="field field-full config-subsection-title">
+      <h3>Envío SMTP</h3>
+      <small class="muted">Estos valores pueden quedar iguales para todos los usuarios si solo cambian usuario y contraseña.</small>
+    </div>
+    <div class="field">
+      <label for="smtp_host">Servidor SMTP</label>
+      <input type="text" id="smtp_host" name="smtp_host"
+             value="{{ config.smtp_host or smtp_defaults.host }}" required>
+    </div>
+    <div class="field">
+      <label for="smtp_port">Puerto SMTP</label>
+      <input type="number" id="smtp_port" name="smtp_port"
+             value="{{ config.smtp_port or smtp_defaults.port }}" required>
+    </div>
+    <div class="field">
+      <label for="smtp_security">Seguridad SMTP</label>
+      {% set smtp_custom = config.smtp_host or config.smtp_port %}
+      {% if smtp_custom %}
+        {% set smtp_security = 'ssl' if config.smtp_use_ssl else ('tls' if config.smtp_use_tls else 'none') %}
+      {% else %}
+        {% set smtp_security = 'ssl' if smtp_defaults.use_ssl else ('tls' if smtp_defaults.use_tls else 'none') %}
+      {% endif %}
+      <select id="smtp_security" name="smtp_security">
+        <option value="tls" {% if smtp_security == 'tls' %}selected{% endif %}>STARTTLS / TLS (587)</option>
+        <option value="ssl" {% if smtp_security == 'ssl' %}selected{% endif %}>SSL directo (465)</option>
+        <option value="none" {% if smtp_security == 'none' %}selected{% endif %}>Sin cifrado</option>
+      </select>
+    </div>
 
     <div class="imap-form-actions">
       <button type="submit" class="btn btn-primary">Guardar</button>
@@ -110,6 +148,8 @@
   const statusEl = document.getElementById('imap-folders-status');
   const selectEntrada = document.getElementById('imap_carpeta_entrada');
   const selectEnviados = document.getElementById('imap_carpeta_enviados');
+  const smtpPort = document.getElementById('smtp_port');
+  const smtpSecurity = document.getElementById('smtp_security');
   const carpetasUrl = {{ url_for('configuracion.listar_carpetas_imap_api') | tojson }};
   const autoLoad = {{ imap_configurado | tojson }};
 
@@ -224,6 +264,12 @@
   }
 
   if (btnCargar) btnCargar.addEventListener('click', cargarCarpetas);
+  if (smtpPort && smtpSecurity) {
+    smtpPort.addEventListener('change', function () {
+      if (smtpPort.value === '465') smtpSecurity.value = 'ssl';
+      if (smtpPort.value === '587') smtpSecurity.value = 'tls';
+    });
+  }
   imapForm.addEventListener('change', syncTestForm);
   imapForm.addEventListener('input', syncTestForm);
   syncTestForm();

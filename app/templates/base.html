@@ -4,21 +4,45 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}Estudio{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
   <header class="header">
-    <div class="container header-inner">
-      <a href="/expedientes" class="logo">Estudio · Expedientes</a>
-      <nav>
+    <div class="top-bar">
+      <div class="container top-bar-inner">
+        <div class="top-bar-links">
+          <a href="tel:+34971002800">+34 971 00 28 00</a>
+          <a href="mailto:info@malla.es">info@malla.es</a>
+        </div>
+        <div class="top-bar-title">Grupo Malla · Estudio</div>
+      </div>
+    </div>
+    <div class="corporate-nav">
+      <div class="container header-inner">
+        <a href="/expedientes" class="logo" aria-label="Ir al listado de expedientes">
+          <img src="{{ url_for('auth.logo_corporativo') }}" alt="Grupo Malla" class="logo-img">
+          <span class="logo-product">Expedientes</span>
+        </a>
         {% if current_user.is_authenticated %}
-        <span class="nav-user">{{ current_user.nombre_completo }}</span>
-        <a href="/expedientes" class="nav-link">Listado</a>
-        <a href="{{ url_for('configuracion.ver_configuracion') }}" class="nav-link">Configuración</a>
-        <a href="/expedientes/nuevo" class="btn btn-primary btn-sm">Nuevo expediente</a>
-        <a href="{{ url_for('auth.logout') }}" class="nav-link">Salir</a>
+        <nav class="nav-main">
+          <a href="/expedientes" class="nav-link">Listado</a>
+          <a href="{{ url_for('configuracion.ver_configuracion') }}" class="nav-link">Configuración</a>
+          <a href="/expedientes/nuevo" class="btn btn-primary btn-sm">Nuevo expediente</a>
+          <span class="nav-user">
+            {% if current_user.foto_empleado_mimetype %}
+            <img src="{{ url_for('auth.foto_usuario_actual') }}" alt="" class="nav-user-avatar">
+            {% else %}
+            <span class="nav-user-avatar nav-user-avatar-fallback">{{ current_user.iniciales }}</span>
+            {% endif %}
+            <span>{{ current_user.nombre_completo }}</span>
+          </span>
+          <a href="{{ url_for('auth.logout') }}" class="nav-link">Salir</a>
+        </nav>
         {% endif %}
-      </nav>
+      </div>
     </div>
   </header>
 

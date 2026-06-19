@@ -1,3 +1,4 @@
+import logging
 from datetime import date, datetime, timezone
 from pathlib import Path
 
@@ -9,9 +10,9 @@ from app.document_utils import documento_to_dict, guess_tipo, preview_kind
 from app.expediente_utils import siguiente_numero_expediente
 from app.models import Correo, Documento, Expediente, TipoDocumento
 from app.services.bc import BCError, bc_service
-from app.services.email_import import subject_marker
+from app.services.email_import import parse_eml_bytes, subject_marker
 from app.services.email_view import parse_eml_for_view
-from app.services.imap_sync import ImapError, buscar_correos_expediente_imap
+from app.services.imap_sync import ImapError, buscar_correos_expediente_imap, guardar_copia_enviada_imap
 from app.services.smtp_send import SmtpError, enviar_correo_smtp
 from app.services.strapi import StrapiError, strapi_service
 from app.services.user_config import (
@@ -22,16 +23,23 @@ from app.services.user_config import (
 )
 
 bp = Blueprint("expedientes", __name__)
+logger = logging.getLogger(__name__)
 
 
 @bp.before_request
 def require_login():
     if not current_user.is_authenticated:
-        return redirect(url_for("auth.login", next=request.url))
+        next_path = request.full_path if request.query_string else request.path
+        if next_path.endswith("?") and not request.query_string:
+            next_path = request.path
+        return redirect(url_for("auth.login", next=next_path))
 
 
 def _db():
-    return g.db
+    db = g.get("db")
+    if db is None:
+        abort(500, description="No hay conexión con la base de datos del estudio")
+    return db
 
 
 def _parse_date(value: str | None) -> date | None:
@@ -437,6 +445,43 @@ def ver_correo_expediente(expediente_id: int, correo_id: int):
     )
 
 
+def _documentos_por_ids(db, expediente_id: int, raw_ids: list[str]) -> list[Documento]:
+    ordered_ids: list[int] = []
+    seen: set[int] = set()
+    for raw_id in raw_ids:
+        try:
+            doc_id = int(raw_id)
+        except (TypeError, ValueError):
+            continue
+        if doc_id in seen:
+            continue
+        ordered_ids.append(doc_id)
+        seen.add(doc_id)
+
+    if not ordered_ids:
+        return []
+
+    documentos = (
+        db.query(Documento)
+        .filter(Documento.expediente_id == expediente_id, Documento.id.in_(ordered_ids))
+        .all()
+    )
+    by_id = {documento.id: documento for documento in documentos}
+    return [by_id[doc_id] for doc_id in ordered_ids if doc_id in by_id]
+
+
+def _cuerpo_con_enlaces(cuerpo: str, documentos: list[Documento]) -> str:
+    if not documentos:
+        return cuerpo
+
+    enlaces = ["", "Documentos:"]
+    enlaces.extend(f"- {documento.nombre}: {documento.url}" for documento in documentos)
+
+    if cuerpo:
+        return f"{cuerpo.rstrip()}\n\n{chr(10).join(enlaces).strip()}"
+    return "\n".join(enlaces).strip()
+
+
 @bp.post("/<int:expediente_id>/correos/enviar")
 def enviar_correo_expediente(expediente_id: int):
     db = _db()
@@ -447,6 +492,7 @@ def enviar_correo_expediente(expediente_id: int):
     destinatario = request.form.get("destinatario", "").strip()
     asunto = request.form.get("asunto", "").strip()
     cuerpo = request.form.get("cuerpo", "").strip()
+    documentos = _documentos_por_ids(db, expediente_id, request.form.getlist("documento_ids"))
 
     if not destinatario:
         flash("Indica un destinatario.", "error")
@@ -459,16 +505,71 @@ def enviar_correo_expediente(expediente_id: int):
     config = get_usuario_config(db, current_user.id)
     settings = smtp_settings_from_config(config)
     if settings is None:
-        flash("Configura IMAP en Configuración antes de enviar correos.", "error")
+        flash("Configura correo en Configuración antes de enviar correos.", "error")
         return redirect(url_for("expedientes.view_expediente", expediente_id=expediente_id))
 
+    cuerpo_enviado = _cuerpo_con_enlaces(cuerpo, documentos)
     try:
-        enviar_correo_smtp(settings, destinatario, asunto, cuerpo)
+        logger.info(
+            "Enviando correo expediente %s con SMTP %s:%s usuario=%s ssl=%s tls=%s",
+            expediente.numero_expediente,
+            settings.host,
+            settings.port,
+            settings.username,
+            settings.use_ssl,
+            settings.use_tls,
+        )
+        eml_enviado = enviar_correo_smtp(settings, destinatario, asunto, cuerpo_enviado)
     except SmtpError as exc:
+        logger.exception("Error SMTP al enviar expediente %s", expediente.numero_expediente)
         flash(str(exc), "error")
         return redirect(url_for("expedientes.view_expediente", expediente_id=expediente_id))
 
-    flash("Correo enviado. Pulsa «Sincronizar correos» para guardarlo en el expediente.", "success")
+    copia_imap_error = None
+    if config.imap_guardar_copia_enviados:
+        imap_settings = imap_settings_from_config(config)
+        if imap_settings is None:
+            copia_imap_error = "No se pudo obtener la configuración IMAP para guardar en Enviados."
+        else:
+            try:
+                guardar_copia_enviada_imap(imap_settings, eml_enviado)
+            except ImapError as exc:
+                logger.exception("Correo enviado, pero no se pudo guardar copia IMAP en expediente %s", expediente.numero_expediente)
+                copia_imap_error = str(exc)
+
+    guardado_en_expediente = False
+    try:
+        mail_info = parse_eml_bytes(
+            eml_enviado,
+            f"enviado-{expediente.numero_expediente}.eml",
+            direccion="enviado",
+            usuario_email=current_user.email,
+        )
+        guardado_en_expediente = _importar_correo(db, expediente_id, mail_info) is not None
+    except Exception:
+        logger.exception("Correo enviado, pero no se pudo guardar en expediente %s", expediente.numero_expediente)
+
+    if documentos:
+        detalle = f" con {len(documentos)} enlace(s)"
+    else:
+        detalle = ""
+
+    if guardado_en_expediente:
+        mensaje = f"Correo enviado{detalle} y guardado en el expediente."
+        if config.imap_guardar_copia_enviados:
+            if copia_imap_error:
+                mensaje += f" No se pudo guardar en IMAP Enviados: {copia_imap_error}"
+                flash(mensaje, "warning")
+            else:
+                mensaje += " Copia guardada en IMAP Enviados."
+                flash(mensaje, "success")
+        else:
+            flash(mensaje, "success")
+    else:
+        mensaje = f"Correo enviado{detalle}, pero no se pudo guardar la copia en el expediente. Revisa el log."
+        if copia_imap_error:
+            mensaje += f" Tampoco se pudo guardar en IMAP Enviados: {copia_imap_error}"
+        flash(mensaje, "warning")
     return redirect(url_for("expedientes.view_expediente", expediente_id=expediente_id))
 
 
@@ -489,12 +590,22 @@ def sincronizar_correos_expediente(expediente_id: int):
         return redirect(url_for("expedientes.view_expediente", expediente_id=expediente_id))
 
     try:
+        logger.info(
+            "Sincronizando correos expediente %s con IMAP %s:%s usuario=%s carpetas=%s/%s",
+            expediente.numero_expediente,
+            settings.host,
+            settings.port,
+            settings.username,
+            settings.carpeta_entrada,
+            settings.carpeta_enviados,
+        )
         mails = buscar_correos_expediente_imap(
             settings,
             expediente.numero_expediente,
             usuario_email=current_user.email,
         )
     except ImapError as exc:
+        logger.exception("Error IMAP al sincronizar expediente %s", expediente.numero_expediente)
         flash(str(exc), "error")
         return redirect(url_for("expedientes.view_expediente", expediente_id=expediente_id))
 
@@ -505,10 +616,16 @@ def sincronizar_correos_expediente(expediente_id: int):
 
     if importados:
         flash(f"Se importaron {importados} correo(s) desde IMAP.", "success")
+    elif mails:
+        flash(
+            f"Se encontraron {len(mails)} correo(s) en IMAP, pero ya estaban importados en el estudio.",
+            "info",
+        )
     else:
         flash(
             "No hay correos nuevos. Busca mensajes cuyo asunto contenga "
-            f"[EXP-{expediente.numero_expediente}] y vuelve a sincronizar.",
+            f"[EXP-{expediente.numero_expediente}] y vuelve a sincronizar. "
+            f"Cuenta: {settings.username}. Carpetas: {settings.carpeta_entrada} / {settings.carpeta_enviados}.",
             "info",
         )
     return redirect(url_for("expedientes.view_expediente", expediente_id=expediente_id))

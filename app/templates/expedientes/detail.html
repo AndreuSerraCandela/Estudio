@@ -100,19 +100,63 @@
         </div>
 
         <div class="list-scroll" id="documentos-scroll" {% if not expediente.documentos %}hidden{% endif %}>
-        <table class="table table-compact table-in-scroll" id="documentos-table">
+        <table class="table table-compact table-in-scroll table-doc-list" id="documentos-table">
           <thead>
             <tr>
-              <th>Nombre</th>
-              <th>Tipo</th>
+              <th>
+                <div class="excel-filter" data-excel-filter="nombre">
+                  <button type="button" class="excel-filter-button" data-excel-filter-toggle="nombre" aria-expanded="false">
+                    Nombre <span class="excel-filter-icon" aria-hidden="true">▼</span>
+                  </button>
+                  <div class="excel-filter-menu" data-excel-filter-menu="nombre" hidden>
+                    <button type="button" class="excel-filter-action" data-sort-col="nombre" data-sort-dir="asc">Ordenar A a Z</button>
+                    <button type="button" class="excel-filter-action" data-sort-col="nombre" data-sort-dir="desc">Ordenar Z a A</button>
+                    <div class="excel-filter-separator"></div>
+                    <input type="search" class="excel-filter-search" placeholder="Buscar" autocomplete="off" aria-label="Buscar valores de nombre">
+                    <label class="excel-filter-check excel-filter-select-all">
+                      <input type="checkbox" data-select-all checked>
+                      <span>Seleccionar todo</span>
+                    </label>
+                    <div class="excel-filter-options" data-filter-options></div>
+                    <div class="excel-filter-actions">
+                      <button type="button" class="btn btn-sm btn-secondary" data-clear-filter>Limpiar</button>
+                      <button type="button" class="btn btn-sm btn-primary" data-apply-filter>Aceptar</button>
+                    </div>
+                  </div>
+                </div>
+              </th>
+              <th>
+                <div class="excel-filter" data-excel-filter="tipo">
+                  <button type="button" class="excel-filter-button" data-excel-filter-toggle="tipo" aria-expanded="false">
+                    Tipo <span class="excel-filter-icon" aria-hidden="true">▼</span>
+                  </button>
+                  <div class="excel-filter-menu" data-excel-filter-menu="tipo" hidden>
+                    <button type="button" class="excel-filter-action" data-sort-col="tipo" data-sort-dir="asc">Ordenar A a Z</button>
+                    <button type="button" class="excel-filter-action" data-sort-col="tipo" data-sort-dir="desc">Ordenar Z a A</button>
+                    <div class="excel-filter-separator"></div>
+                    <input type="search" class="excel-filter-search" placeholder="Buscar" autocomplete="off" aria-label="Buscar valores de tipo">
+                    <label class="excel-filter-check excel-filter-select-all">
+                      <input type="checkbox" data-select-all checked>
+                      <span>Seleccionar todo</span>
+                    </label>
+                    <div class="excel-filter-options" data-filter-options></div>
+                    <div class="excel-filter-actions">
+                      <button type="button" class="btn btn-sm btn-secondary" data-clear-filter>Limpiar</button>
+                      <button type="button" class="btn btn-sm btn-primary" data-apply-filter>Aceptar</button>
+                    </div>
+                  </div>
+                </div>
+              </th>
               <th></th>
             </tr>
           </thead>
           <tbody id="documentos-tbody">
             {% for doc in expediente.documentos %}
             {% set preview = documento_preview(doc) %}
-            <tr class="doc-preview-row" tabindex="0"
+            <tr class="doc-preview-row" tabindex="0" draggable="true"
+                data-doc-id="{{ doc.id }}"
                 data-doc-nombre="{{ doc.nombre }}"
+                data-doc-tipo="{{ doc.tipo }}"
                 data-doc-url="{{ doc.url }}"
                 data-preview-kind="{{ preview.kind }}"
                 data-preview-src="{{ preview.src }}">
@@ -131,6 +175,7 @@
             {% endfor %}
           </tbody>
         </table>
+        <p id="documentos-no-match" class="documentos-no-match muted" hidden>Ningún documento coincide con el filtro.</p>
         </div>
       </section>
     </div>
@@ -148,7 +193,8 @@
 
       <p class="muted correos-help">
         Etiqueta obligatoria en el asunto: <code>[EXP-{{ expediente.numero_expediente }}]</code>.
-        Tras enviar, pulsa «Sincronizar correos» para guardarlo en el expediente.
+        Los correos enviados desde Estudio se guardan automáticamente en el expediente.
+        Usa «Sincronizar correos» para importar respuestas o mensajes enviados fuera de Estudio.
         {% if not imap_configurado %}
         <a href="{{ url_for('configuracion.ver_configuracion') }}">Configura IMAP</a> antes de enviar o sincronizar.
         {% endif %}
@@ -166,6 +212,14 @@
         <div class="field field-full">
           <label for="cuerpo">Mensaje</label>
           <textarea id="cuerpo" name="cuerpo" rows="5" placeholder="Escribe el mensaje..."></textarea>
+        </div>
+        <div class="field field-full">
+          <label>Documentos como enlaces</label>
+          <div id="correo-document-drop" class="correo-link-drop" tabindex="0">
+            <strong>Arrastra aquí documentos de la lista</strong>
+            <span>Se enviarán como enlaces en el cuerpo del correo, no como adjuntos.</span>
+          </div>
+          <ul id="correo-document-links" class="correo-link-list" hidden></ul>
         </div>
         <button type="submit" class="btn btn-primary">Enviar</button>
       </form>
@@ -234,5 +288,7 @@
 
 {% block scripts %}
 <script src="/static/js/document-drop.js"></script>
+<script src="/static/js/document-list.js"></script>
 <script src="/static/js/document-preview.js"></script>
+<script src="/static/js/correo-links.js"></script>
 {% endblock %}

@@ -14,6 +14,9 @@ def _validate_database_name(name: str) -> str:
 
 
 def ensure_database() -> None:
+    if not settings.auto_create_database:
+        return
+
     database = _validate_database_name(settings.db_name)
     with pyodbc.connect(settings.pyodbc_connection_string("master"), autocommit=True) as conn:
         cursor = conn.cursor()
@@ -24,7 +27,10 @@ def ensure_database() -> None:
 def _run_schema_script() -> None:
     schema_path = Path(settings.schema_path)
     if not schema_path.is_file():
-        raise FileNotFoundError(f"No se encontró el esquema SQL: {schema_path}")
+        raise FileNotFoundError(
+            f"No se encontró el esquema SQL: {schema_path}. "
+            "Copia sql/estudio_schema.sql al servidor o define ESTUDIO_SCHEMA_PATH en .env"
+        )
 
     sql = schema_path.read_text(encoding="utf-8")
     with pyodbc.connect(settings.pyodbc_connection_string(), autocommit=True) as conn:

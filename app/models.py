@@ -97,5 +97,10 @@ class UsuarioConfig(Base):
     imap_password_enc: Mapped[str | None] = mapped_column(Text)
     imap_carpeta_entrada: Mapped[str] = mapped_column(String(255), default="INBOX")
     imap_carpeta_enviados: Mapped[str] = mapped_column(String(255), default="Sent Items")
+    imap_guardar_copia_enviados: Mapped[bool] = mapped_column(Boolean, default=False)
+    smtp_host: Mapped[str | None] = mapped_column(String(255))
+    smtp_port: Mapped[int | None] = mapped_column(Integer)
+    smtp_use_tls: Mapped[bool] = mapped_column(Boolean, default=True)
+    smtp_use_ssl: Mapped[bool] = mapped_column(Boolean, default=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=text("SYSUTCDATETIME()"))
 

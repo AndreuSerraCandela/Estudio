@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 
 {% block title %}Expedientes — Estudio{% endblock %}
+{% block main_class %}main-wide{% endblock %}
 
 {% block content %}
 <div class="page-header">
@@ -12,22 +13,178 @@
 </div>
 
 {% if expedientes %}
-<table class="table">
+<table class="table table-expedientes table-has-excel-filter" id="expedientes-table">
   <thead>
     <tr>
-      <th>Nº Expediente</th>
-      <th>Cliente</th>
-      <th>Trabajo</th>
-      <th>Proyecto</th>
-      <th>Inicio</th>
-      <th>Finalización</th>
-      <th>Diseñador/a</th>
+      <th>
+        <div class="excel-filter" data-excel-filter="numero">
+          <button type="button" class="excel-filter-button" data-excel-filter-toggle="numero" aria-expanded="false">
+            Nº Expediente <span class="excel-filter-icon" aria-hidden="true">▼</span>
+          </button>
+          <div class="excel-filter-menu" data-excel-filter-menu="numero" hidden>
+            <button type="button" class="excel-filter-action" data-sort-col="numero" data-sort-dir="asc">Ordenar A a Z</button>
+            <button type="button" class="excel-filter-action" data-sort-col="numero" data-sort-dir="desc">Ordenar Z a A</button>
+            <div class="excel-filter-separator"></div>
+            <input type="search" class="excel-filter-search" placeholder="Buscar" autocomplete="off" aria-label="Buscar valores de nº expediente">
+            <label class="excel-filter-check excel-filter-select-all">
+              <input type="checkbox" data-select-all checked>
+              <span>Seleccionar todo</span>
+            </label>
+            <div class="excel-filter-options" data-filter-options></div>
+            <div class="excel-filter-actions">
+              <button type="button" class="btn btn-sm btn-secondary" data-clear-filter>Limpiar</button>
+              <button type="button" class="btn btn-sm btn-primary" data-apply-filter>Aceptar</button>
+            </div>
+          </div>
+        </div>
+      </th>
+      <th>
+        <div class="excel-filter" data-excel-filter="cliente">
+          <button type="button" class="excel-filter-button" data-excel-filter-toggle="cliente" aria-expanded="false">
+            Cliente <span class="excel-filter-icon" aria-hidden="true">▼</span>
+          </button>
+          <div class="excel-filter-menu" data-excel-filter-menu="cliente" hidden>
+            <button type="button" class="excel-filter-action" data-sort-col="cliente" data-sort-dir="asc">Ordenar A a Z</button>
+            <button type="button" class="excel-filter-action" data-sort-col="cliente" data-sort-dir="desc">Ordenar Z a A</button>
+            <div class="excel-filter-separator"></div>
+            <input type="search" class="excel-filter-search" placeholder="Buscar" autocomplete="off" aria-label="Buscar valores de cliente">
+            <label class="excel-filter-check excel-filter-select-all">
+              <input type="checkbox" data-select-all checked>
+              <span>Seleccionar todo</span>
+            </label>
+            <div class="excel-filter-options" data-filter-options></div>
+            <div class="excel-filter-actions">
+              <button type="button" class="btn btn-sm btn-secondary" data-clear-filter>Limpiar</button>
+              <button type="button" class="btn btn-sm btn-primary" data-apply-filter>Aceptar</button>
+            </div>
+          </div>
+        </div>
+      </th>
+      <th>
+        <div class="excel-filter" data-excel-filter="trabajo">
+          <button type="button" class="excel-filter-button" data-excel-filter-toggle="trabajo" aria-expanded="false">
+            Trabajo <span class="excel-filter-icon" aria-hidden="true">▼</span>
+          </button>
+          <div class="excel-filter-menu" data-excel-filter-menu="trabajo" hidden>
+            <button type="button" class="excel-filter-action" data-sort-col="trabajo" data-sort-dir="asc">Ordenar A a Z</button>
+            <button type="button" class="excel-filter-action" data-sort-col="trabajo" data-sort-dir="desc">Ordenar Z a A</button>
+            <div class="excel-filter-separator"></div>
+            <input type="search" class="excel-filter-search" placeholder="Buscar" autocomplete="off" aria-label="Buscar valores de trabajo">
+            <label class="excel-filter-check excel-filter-select-all">
+              <input type="checkbox" data-select-all checked>
+              <span>Seleccionar todo</span>
+            </label>
+            <div class="excel-filter-options" data-filter-options></div>
+            <div class="excel-filter-actions">
+              <button type="button" class="btn btn-sm btn-secondary" data-clear-filter>Limpiar</button>
+              <button type="button" class="btn btn-sm btn-primary" data-apply-filter>Aceptar</button>
+            </div>
+          </div>
+        </div>
+      </th>
+      <th>
+        <div class="excel-filter" data-excel-filter="proyecto">
+          <button type="button" class="excel-filter-button" data-excel-filter-toggle="proyecto" aria-expanded="false">
+            Proyecto <span class="excel-filter-icon" aria-hidden="true">▼</span>
+          </button>
+          <div class="excel-filter-menu" data-excel-filter-menu="proyecto" hidden>
+            <button type="button" class="excel-filter-action" data-sort-col="proyecto" data-sort-dir="asc">Ordenar A a Z</button>
+            <button type="button" class="excel-filter-action" data-sort-col="proyecto" data-sort-dir="desc">Ordenar Z a A</button>
+            <div class="excel-filter-separator"></div>
+            <input type="search" class="excel-filter-search" placeholder="Buscar" autocomplete="off" aria-label="Buscar valores de proyecto">
+            <label class="excel-filter-check excel-filter-select-all">
+              <input type="checkbox" data-select-all checked>
+              <span>Seleccionar todo</span>
+            </label>
+            <div class="excel-filter-options" data-filter-options></div>
+            <div class="excel-filter-actions">
+              <button type="button" class="btn btn-sm btn-secondary" data-clear-filter>Limpiar</button>
+              <button type="button" class="btn btn-sm btn-primary" data-apply-filter>Aceptar</button>
+            </div>
+          </div>
+        </div>
+      </th>
+      <th>
+        <div class="excel-filter" data-excel-filter="inicio">
+          <button type="button" class="excel-filter-button" data-excel-filter-toggle="inicio" aria-expanded="false">
+            Inicio <span class="excel-filter-icon" aria-hidden="true">▼</span>
+          </button>
+          <div class="excel-filter-menu" data-excel-filter-menu="inicio" hidden>
+            <button type="button" class="excel-filter-action" data-sort-col="inicio" data-sort-dir="asc">Ordenar de más antiguo a más reciente</button>
+            <button type="button" class="excel-filter-action" data-sort-col="inicio" data-sort-dir="desc">Ordenar de más reciente a más antiguo</button>
+            <div class="excel-filter-separator"></div>
+            <input type="search" class="excel-filter-search" placeholder="Buscar" autocomplete="off" aria-label="Buscar valores de inicio">
+            <label class="excel-filter-check excel-filter-select-all">
+              <input type="checkbox" data-select-all checked>
+              <span>Seleccionar todo</span>
+            </label>
+            <div class="excel-filter-options" data-filter-options></div>
+            <div class="excel-filter-actions">
+              <button type="button" class="btn btn-sm btn-secondary" data-clear-filter>Limpiar</button>
+              <button type="button" class="btn btn-sm btn-primary" data-apply-filter>Aceptar</button>
+            </div>
+          </div>
+        </div>
+      </th>
+      <th>
+        <div class="excel-filter" data-excel-filter="finalizacion">
+          <button type="button" class="excel-filter-button" data-excel-filter-toggle="finalizacion" aria-expanded="false">
+            Finalización <span class="excel-filter-icon" aria-hidden="true">▼</span>
+          </button>
+          <div class="excel-filter-menu excel-filter-menu-right" data-excel-filter-menu="finalizacion" hidden>
+            <button type="button" class="excel-filter-action" data-sort-col="finalizacion" data-sort-dir="asc">Ordenar de más antiguo a más reciente</button>
+            <button type="button" class="excel-filter-action" data-sort-col="finalizacion" data-sort-dir="desc">Ordenar de más reciente a más antiguo</button>
+            <div class="excel-filter-separator"></div>
+            <input type="search" class="excel-filter-search" placeholder="Buscar" autocomplete="off" aria-label="Buscar valores de finalización">
+            <label class="excel-filter-check excel-filter-select-all">
+              <input type="checkbox" data-select-all checked>
+              <span>Seleccionar todo</span>
+            </label>
+            <div class="excel-filter-options" data-filter-options></div>
+            <div class="excel-filter-actions">
+              <button type="button" class="btn btn-sm btn-secondary" data-clear-filter>Limpiar</button>
+              <button type="button" class="btn btn-sm btn-primary" data-apply-filter>Aceptar</button>
+            </div>
+          </div>
+        </div>
+      </th>
+      <th>
+        <div class="excel-filter" data-excel-filter="disenador">
+          <button type="button" class="excel-filter-button" data-excel-filter-toggle="disenador" aria-expanded="false">
+            Diseñador/a <span class="excel-filter-icon" aria-hidden="true">▼</span>
+          </button>
+          <div class="excel-filter-menu excel-filter-menu-right" data-excel-filter-menu="disenador" hidden>
+            <button type="button" class="excel-filter-action" data-sort-col="disenador" data-sort-dir="asc">Ordenar A a Z</button>
+            <button type="button" class="excel-filter-action" data-sort-col="disenador" data-sort-dir="desc">Ordenar Z a A</button>
+            <div class="excel-filter-separator"></div>
+            <input type="search" class="excel-filter-search" placeholder="Buscar" autocomplete="off" aria-label="Buscar valores de diseñador">
+            <label class="excel-filter-check excel-filter-select-all">
+              <input type="checkbox" data-select-all checked>
+              <span>Seleccionar todo</span>
+            </label>
+            <div class="excel-filter-options" data-filter-options></div>
+            <div class="excel-filter-actions">
+              <button type="button" class="btn btn-sm btn-secondary" data-clear-filter>Limpiar</button>
+              <button type="button" class="btn btn-sm btn-primary" data-apply-filter>Aceptar</button>
+            </div>
+          </div>
+        </div>
+      </th>
       <th></th>
     </tr>
   </thead>
-  <tbody>
+  <tbody id="expedientes-tbody">
     {% for exp in expedientes %}
-    <tr>
+    <tr class="expediente-row"
+        data-exp-numero="{{ exp.numero_expediente }}"
+        data-exp-cliente="{{ exp.cliente }}"
+        data-exp-trabajo="{{ exp.trabajo or '—' }}"
+        data-exp-proyecto="{{ exp.proyecto or '—' }}"
+        data-exp-inicio="{{ exp.fecha_inicio.strftime('%d/%m/%Y') if exp.fecha_inicio else '—' }}"
+        data-exp-inicio-sort="{{ exp.fecha_inicio.isoformat() if exp.fecha_inicio else '' }}"
+        data-exp-finalizacion="{{ exp.fecha_finalizacion.strftime('%d/%m/%Y') if exp.fecha_finalizacion else '—' }}"
+        data-exp-finalizacion-sort="{{ exp.fecha_finalizacion.isoformat() if exp.fecha_finalizacion else '' }}"
+        data-exp-disenador="{{ exp.disenador or '—' }}">
       <td><strong>{{ exp.numero_expediente }}</strong></td>
       <td>{{ exp.cliente }}</td>
       <td class="truncate">{{ exp.trabajo or '—' }}</td>
@@ -40,10 +197,15 @@
     {% endfor %}
   </tbody>
 </table>
+<p id="expedientes-no-match" class="table-no-match muted" hidden>Ningún expediente coincide con el filtro.</p>
 {% else %}
 <div class="empty-state">
   <p>No hay expedientes{% if q %} que coincidan con la búsqueda{% endif %}.</p>
   <a href="/expedientes/nuevo" class="btn btn-primary">Crear primer expediente</a>
 </div>
 {% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/expediente-list.js"></script>
 {% endblock %}

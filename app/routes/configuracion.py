@@ -4,6 +4,7 @@ from flask_login import current_user, login_required
 from app.services.imap_sync import ImapError, ImapSettings, listar_carpetas_imap, probar_conexion_imap
 from app.services.user_config import (
     IMAP_DEFAULTS,
+    SMTP_DEFAULTS,
     get_usuario_config,
     imap_configurado,
     imap_settings_from_config,
@@ -14,7 +15,12 @@ bp = Blueprint("configuracion", __name__)
 
 
 def _db():
-    return g.db
+    db = g.get("db")
+    if db is None:
+        from flask import abort
+
+        abort(500, description="No hay conexión con la base de datos del estudio")
+    return db
 
 
 def _imap_settings_from_request(db) -> tuple[ImapSettings | None, str | None]:
@@ -59,6 +65,7 @@ def ver_configuracion():
         config=config,
         imap_configurado=imap_configurado(config),
         imap_defaults=IMAP_DEFAULTS,
+        smtp_defaults=SMTP_DEFAULTS,
     )
 
 
@@ -73,12 +80,24 @@ def guardar_imap():
     password = request.form.get("imap_password", "")
     carpeta_entrada = request.form.get("imap_carpeta_entrada", IMAP_DEFAULTS["carpeta_entrada"])
     carpeta_enviados = request.form.get("imap_carpeta_enviados", IMAP_DEFAULTS["carpeta_enviados"])
+    guardar_copia_enviados = request.form.get("imap_guardar_copia_enviados") == "on"
+    smtp_host = request.form.get("smtp_host", "")
+    smtp_port_raw = request.form.get("smtp_port", str(SMTP_DEFAULTS["port"]))
+    smtp_security = request.form.get("smtp_security", "tls")
 
     try:
         port = int(port_raw)
     except ValueError:
         flash("El puerto IMAP debe ser un número.", "error")
         return redirect(url_for("configuracion.ver_configuracion"))
+    try:
+        smtp_port = int(smtp_port_raw)
+    except ValueError:
+        flash("El puerto SMTP debe ser un número.", "error")
+        return redirect(url_for("configuracion.ver_configuracion"))
+
+    smtp_use_ssl = smtp_security == "ssl"
+    smtp_use_tls = smtp_security == "tls"
 
     try:
         set_imap_config(
@@ -91,6 +110,11 @@ def guardar_imap():
             password=password or None,
             carpeta_entrada=carpeta_entrada,
             carpeta_enviados=carpeta_enviados,
+            guardar_copia_enviados=guardar_copia_enviados,
+            smtp_host=smtp_host,
+            smtp_port=smtp_port,
+            smtp_use_tls=smtp_use_tls,
+            smtp_use_ssl=smtp_use_ssl,
         )
     except ValueError as exc:
         flash(str(exc), "error")

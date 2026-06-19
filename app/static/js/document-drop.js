@@ -29,8 +29,10 @@
     const tr = document.createElement("tr");
     tr.className = "doc-preview-row";
     tr.tabIndex = 0;
+    tr.draggable = true;
     tr.dataset.docId = String(doc.id);
     tr.dataset.docNombre = doc.nombre;
+    tr.dataset.docTipo = doc.tipo || "";
     tr.dataset.docUrl = doc.url;
     tr.dataset.previewKind = doc.preview_kind || "other";
     tr.dataset.previewSrc = doc.preview_src || doc.url;
