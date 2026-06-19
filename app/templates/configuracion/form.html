@@ -1,0 +1,236 @@
+{% extends "base.html" %}
+
+{% block title %}Configuración — Estudio{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <p class="breadcrumb"><a href="/expedientes">Expedientes</a> / Configuración</p>
+    <h1>Configuración</h1>
+    <p class="subtitle">Correo IMAP de {{ current_user.nombre_completo }}</p>
+  </div>
+</div>
+
+<section class="card config-section" id="imap-config">
+  <h2>Correo IMAP</h2>
+  <p class="muted">
+    Configura tu buzón para enviar y sincronizar correos en los expedientes.
+    {% if imap_configurado %}
+    <span class="badge">Configurado</span>
+    {% endif %}
+  </p>
+
+  <form method="post" action="{{ url_for('configuracion.guardar_imap') }}" class="imap-form" id="imap-form">
+    <div class="field">
+      <label for="imap_host">Servidor IMAP</label>
+      <input type="text" id="imap_host" name="imap_host"
+             value="{{ config.imap_host or imap_defaults.host }}" required>
+    </div>
+    <div class="field">
+      <label for="imap_port">Puerto</label>
+      <input type="number" id="imap_port" name="imap_port"
+             value="{{ config.imap_port or imap_defaults.port }}" required>
+    </div>
+    <div class="field">
+      <label for="imap_username">Usuario / email</label>
+      <input type="email" id="imap_username" name="imap_username"
+             value="{{ config.imap_username or current_user.email }}" required>
+    </div>
+    <div class="field">
+      <label for="imap_password">Contraseña IMAP</label>
+      <input type="password" id="imap_password" name="imap_password"
+             placeholder="{% if imap_configurado %}Dejar en blanco para no cambiar{% else %}Contraseña o de aplicación{% endif %}"
+             autocomplete="new-password">
+    </div>
+    <div class="field">
+      <label class="checkbox-row">
+        <input type="checkbox" name="imap_use_ssl" id="imap_use_ssl" {% if config.imap_use_ssl %}checked{% endif %}>
+        Usar SSL/TLS
+      </label>
+    </div>
+
+    <div class="field field-full imap-folders-toolbar">
+      <button type="button" class="btn btn-secondary btn-sm" id="btn-cargar-carpetas">
+        Cargar carpetas del servidor
+      </button>
+      <span id="imap-folders-status" class="muted"></span>
+    </div>
+
+    <div class="field">
+      <label for="imap_carpeta_entrada">Carpeta recibidos</label>
+      <select id="imap_carpeta_entrada" name="imap_carpeta_entrada" required
+              data-selected="{{ config.imap_carpeta_entrada or imap_defaults.carpeta_entrada }}">
+        <option value="{{ config.imap_carpeta_entrada or imap_defaults.carpeta_entrada }}">
+          {{ config.imap_carpeta_entrada or imap_defaults.carpeta_entrada }}
+        </option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="imap_carpeta_enviados">Carpeta enviados</label>
+      <select id="imap_carpeta_enviados" name="imap_carpeta_enviados" required
+              data-selected="{{ config.imap_carpeta_enviados or imap_defaults.carpeta_enviados }}">
+        <option value="{{ config.imap_carpeta_enviados or imap_defaults.carpeta_enviados }}">
+          {{ config.imap_carpeta_enviados or imap_defaults.carpeta_enviados }}
+        </option>
+      </select>
+    </div>
+
+    <div class="imap-form-actions">
+      <button type="submit" class="btn btn-primary">Guardar</button>
+    </div>
+  </form>
+
+  <form method="post" action="{{ url_for('configuracion.probar_imap') }}" class="imap-test-form" id="imap-test-form">
+    <button type="submit" class="btn btn-secondary">Probar conexión IMAP</button>
+    <small class="muted">Usa la contraseña guardada. Rellena el campo contraseña arriba si aún no la guardaste.</small>
+  </form>
+</section>
+
+<section class="card config-help">
+  <h2>Uso con Outlook</h2>
+  <dl class="detail-list">
+    <dt>1. Activar IMAP</dt>
+    <dd>Microsoft 365 → Configuración del buzón → Correo → POP e IMAP → IMAP activado.</dd>
+    <dt>2. Contraseña de aplicación</dt>
+    <dd>Si tienes MFA, crea una contraseña de aplicación en la cuenta Microsoft.</dd>
+    <dt>3. Carpetas</dt>
+    <dd>Pulsa «Cargar carpetas del servidor» para elegir recibidos y enviados en el desplegable.</dd>
+    <dt>4. Sincronizar</dt>
+    <dd>En el expediente, envía el correo y pulsa «Sincronizar correos».</dd>
+  </dl>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  const imapForm = document.getElementById('imap-form');
+  const testForm = document.getElementById('imap-test-form');
+  const btnCargar = document.getElementById('btn-cargar-carpetas');
+  const statusEl = document.getElementById('imap-folders-status');
+  const selectEntrada = document.getElementById('imap_carpeta_entrada');
+  const selectEnviados = document.getElementById('imap_carpeta_enviados');
+  const carpetasUrl = {{ url_for('configuracion.listar_carpetas_imap_api') | tojson }};
+  const autoLoad = {{ imap_configurado | tojson }};
+
+  if (!imapForm || !selectEntrada || !selectEnviados) return;
+
+  function buildFormData() {
+    const data = new FormData();
+    for (const name of ['imap_host', 'imap_port', 'imap_username', 'imap_password', 'imap_carpeta_entrada', 'imap_carpeta_enviados']) {
+      const field = imapForm.querySelector('[name="' + name + '"]');
+      if (field) data.append(name, field.value);
+    }
+    const ssl = imapForm.querySelector('[name="imap_use_ssl"]');
+    if (ssl && ssl.checked) data.append('imap_use_ssl', 'on');
+    return data;
+  }
+
+  function fillSelect(select, folders, selected) {
+    const current = selected || select.dataset.selected || select.value;
+    select.innerHTML = '';
+    if (!folders.length) {
+      const opt = document.createElement('option');
+      opt.value = current;
+      opt.textContent = current;
+      select.appendChild(opt);
+      return;
+    }
+    folders.forEach(function (name) {
+      const opt = document.createElement('option');
+      opt.value = name;
+      opt.textContent = name;
+      if (name === current) opt.selected = true;
+      select.appendChild(opt);
+    });
+    if (!folders.includes(current) && current) {
+      const opt = document.createElement('option');
+      opt.value = current;
+      opt.textContent = current + ' (actual)';
+      opt.selected = true;
+      select.insertBefore(opt, select.firstChild);
+    }
+  }
+
+  function guessSentFolder(folders) {
+    return folders.find(function (name) {
+      const lower = name.toLowerCase();
+      return lower.includes('sent') || lower.includes('enviado');
+    });
+  }
+
+  function guessInboxFolder(folders) {
+    if (folders.includes('INBOX')) return 'INBOX';
+    return folders.find(function (name) {
+      return name.toLowerCase().includes('inbox') || name.toLowerCase().includes('entrada');
+    });
+  }
+
+  async function cargarCarpetas() {
+    if (statusEl) statusEl.textContent = 'Conectando con IMAP…';
+    if (btnCargar) btnCargar.disabled = true;
+
+    try {
+      const response = await fetch(carpetasUrl, {
+        method: 'POST',
+        body: buildFormData(),
+        headers: { 'Accept': 'application/json' },
+        credentials: 'same-origin',
+      });
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error || 'No se pudieron cargar las carpetas.');
+      }
+
+      const folders = payload.carpetas || [];
+      const selectedEntrada = selectEntrada.dataset.selected || selectEntrada.value;
+      const selectedEnviados = selectEnviados.dataset.selected || selectEnviados.value;
+
+      fillSelect(selectEntrada, folders, selectedEntrada || guessInboxFolder(folders));
+      fillSelect(selectEnviados, folders, selectedEnviados || guessSentFolder(folders));
+
+      if (statusEl) {
+        statusEl.textContent = folders.length
+          ? folders.length + ' carpeta(s) cargada(s).'
+          : 'No se encontraron carpetas.';
+      }
+    } catch (err) {
+      if (statusEl) statusEl.textContent = err.message || 'Error al cargar carpetas.';
+    } finally {
+      if (btnCargar) btnCargar.disabled = false;
+    }
+  }
+
+  function syncTestForm() {
+    if (!testForm) return;
+    testForm.innerHTML = '';
+    const fields = buildFormData();
+    for (const [name, value] of fields.entries()) {
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = name;
+      input.value = value;
+      testForm.appendChild(input);
+    }
+    const submit = document.createElement('button');
+    submit.type = 'submit';
+    submit.className = 'btn btn-secondary';
+    submit.textContent = 'Probar conexión IMAP';
+    testForm.appendChild(submit);
+    const hint = document.createElement('small');
+    hint.className = 'muted';
+    hint.textContent = 'Usa la contraseña guardada. Rellena el campo contraseña arriba si aún no la guardaste.';
+    testForm.appendChild(hint);
+  }
+
+  if (btnCargar) btnCargar.addEventListener('click', cargarCarpetas);
+  imapForm.addEventListener('change', syncTestForm);
+  imapForm.addEventListener('input', syncTestForm);
+  syncTestForm();
+
+  if (autoLoad) {
+    cargarCarpetas();
+  }
+})();
+</script>
+{% endblock %}

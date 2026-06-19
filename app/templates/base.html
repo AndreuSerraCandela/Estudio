@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Estudio{% endblock %}</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+  <header class="header">
+    <div class="container header-inner">
+      <a href="/expedientes" class="logo">Estudio · Expedientes</a>
+      <nav>
+        {% if current_user.is_authenticated %}
+        <span class="nav-user">{{ current_user.nombre_completo }}</span>
+        <a href="/expedientes" class="nav-link">Listado</a>
+        <a href="{{ url_for('configuracion.ver_configuracion') }}" class="nav-link">Configuración</a>
+        <a href="/expedientes/nuevo" class="btn btn-primary btn-sm">Nuevo expediente</a>
+        <a href="{{ url_for('auth.logout') }}" class="nav-link">Salir</a>
+        {% endif %}
+      </nav>
+    </div>
+  </header>
+
+  <main class="container main {% block main_class %}{% endblock %}">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+      <div class="flash-list">
+        {% for category, message in messages %}
+        <div class="flash flash-{{ category }}">{{ message }}</div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="footer">
+    <div class="container">
+      <small>Gestión de expedientes del estudio</small>
+    </div>
+  </footer>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

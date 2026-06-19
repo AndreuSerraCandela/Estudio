@@ -1,0 +1,238 @@
+{% extends "base.html" %}
+
+{% block title %}Expediente {{ expediente.numero_expediente }} — Estudio{% endblock %}
+{% block main_class %}main-wide{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <p class="breadcrumb"><a href="/expedientes">Expedientes</a> / {{ expediente.numero_expediente }}</p>
+    <h1>{{ expediente.numero_expediente }}</h1>
+    <p class="subtitle">{{ expediente.cliente }}</p>
+  </div>
+  <div class="header-actions">
+    <a href="/expedientes/{{ expediente.id }}/editar" class="btn btn-secondary">Editar</a>
+  </div>
+</div>
+
+<div class="detail-page-layout">
+  <div class="detail-page-main">
+    <div class="detail-grid">
+      <section class="card">
+        <h2>Información</h2>
+        <dl class="detail-list">
+          <dt>Cliente</dt>
+          <dd>
+            {{ expediente.cliente }}
+            {% if expediente.bc_cliente_id %}
+            <br><small class="muted">BC: {{ expediente.bc_cliente_id }}</small>
+            {% endif %}
+          </dd>
+          <dt>Trabajo</dt>
+          <dd>{{ expediente.trabajo or '—' }}</dd>
+          <dt>Comercial</dt>
+          <dd>
+            {{ expediente.comercial or '—' }}
+            {% if expediente.bc_comercial_id %}
+            <br><small class="muted">BC: {{ expediente.bc_comercial_id }}</small>
+            {% endif %}
+          </dd>
+          <dt>OT</dt>
+          <dd>{{ expediente.ot or '—' }}</dd>
+          <dt>Proyecto</dt>
+          <dd>
+            {{ expediente.proyecto or '—' }}
+            {% if expediente.bc_proyecto_id %}
+            <br><small class="muted">BC: {{ expediente.bc_proyecto_id }}</small>
+            {% endif %}
+          </dd>
+          <dt>Fecha inicio</dt>
+          <dd>{{ expediente.fecha_inicio.strftime('%d/%m/%Y') if expediente.fecha_inicio else '—' }}</dd>
+          <dt>Fecha finalización</dt>
+          <dd>{{ expediente.fecha_finalizacion.strftime('%d/%m/%Y') if expediente.fecha_finalizacion else '—' }}</dd>
+          <dt>Producto</dt>
+          <dd>{{ expediente.producto or '—' }}</dd>
+          <dt>Acabado</dt>
+          <dd>{{ expediente.acabado or '—' }}</dd>
+          <dt>Diseñador/a</dt>
+          <dd>{{ expediente.disenador or '—' }}</dd>
+          <dt>Observaciones</dt>
+          <dd class="pre-wrap">{{ expediente.observaciones or '—' }}</dd>
+        </dl>
+      </section>
+
+      <section class="card" id="documentos-panel"
+               data-upload-url="{{ url_for('expedientes.upload_documento_api', expediente_id=expediente.id) }}">
+        <h2>Documentos</h2>
+
+        <form method="post" action="{{ url_for('expedientes.upload_documento', expediente_id=expediente.id) }}"
+              enctype="multipart/form-data" class="upload-form">
+          <div class="field">
+            <label for="archivo">Subir documento</label>
+            <input type="file" id="archivo" name="archivo">
+          </div>
+          <div class="field">
+            <label for="tipo">Tipo</label>
+            <select id="tipo" name="tipo">
+              {% for t in tipos_documento %}
+              <option value="{{ t }}">{{ t.replace('_', ' ').title() }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="field">
+            <label for="descripcion">Descripción</label>
+            <input type="text" id="descripcion" name="descripcion" placeholder="Opcional">
+          </div>
+          <button type="submit" class="btn btn-primary">Subir documento</button>
+        </form>
+
+        <div id="document-drop-zone" class="document-drop-zone">
+          <div class="document-drop-zone-inner">
+            <strong>Arrastra aquí archivos o mensajes de correo</strong>
+            <span>PDF, imágenes, .msg, .eml y otros documentos</span>
+          </div>
+        </div>
+
+        <p id="document-upload-status" class="document-upload-status" hidden></p>
+
+        <div id="documentos-empty" class="documentos-empty muted" {% if expediente.documentos %}hidden{% endif %}>
+          Sin documentos adjuntos. Arrastra archivos a la zona de arriba.
+        </div>
+
+        <div class="list-scroll" id="documentos-scroll" {% if not expediente.documentos %}hidden{% endif %}>
+        <table class="table table-compact table-in-scroll" id="documentos-table">
+          <thead>
+            <tr>
+              <th>Nombre</th>
+              <th>Tipo</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="documentos-tbody">
+            {% for doc in expediente.documentos %}
+            {% set preview = documento_preview(doc) %}
+            <tr class="doc-preview-row" tabindex="0"
+                data-doc-nombre="{{ doc.nombre }}"
+                data-doc-url="{{ doc.url }}"
+                data-preview-kind="{{ preview.kind }}"
+                data-preview-src="{{ preview.src }}">
+              <td>
+                <span class="doc-name">{{ doc.nombre }}</span>
+                {% if doc.descripcion %}<br><small class="muted">{{ doc.descripcion }}</small>{% endif %}
+              </td>
+              <td><span class="badge">{{ doc.tipo.replace('_', ' ') }}</span></td>
+              <td>
+                <form method="post" action="{{ url_for('expedientes.delete_documento', expediente_id=expediente.id, documento_id=doc.id) }}"
+                      onsubmit="return confirm('¿Eliminar este documento?')">
+                  <button type="submit" class="btn btn-sm btn-danger">Eliminar</button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        </div>
+      </section>
+    </div>
+
+    <section class="card correos-section">
+      <div class="correos-header">
+        <h2>Correo</h2>
+        <div class="correos-header-actions">
+          <form method="post" action="{{ url_for('expedientes.sincronizar_correos_expediente', expediente_id=expediente.id) }}">
+            <button type="submit" class="btn btn-secondary btn-sm">Sincronizar correos</button>
+          </form>
+          <a href="{{ url_for('configuracion.ver_configuracion') }}" class="btn btn-secondary btn-sm">Configuración IMAP</a>
+        </div>
+      </div>
+
+      <p class="muted correos-help">
+        Etiqueta obligatoria en el asunto: <code>[EXP-{{ expediente.numero_expediente }}]</code>.
+        Tras enviar, pulsa «Sincronizar correos» para guardarlo en el expediente.
+        {% if not imap_configurado %}
+        <a href="{{ url_for('configuracion.ver_configuracion') }}">Configura IMAP</a> antes de enviar o sincronizar.
+        {% endif %}
+      </p>
+
+      <form method="post" action="{{ url_for('expedientes.enviar_correo_expediente', expediente_id=expediente.id) }}" class="correo-form">
+        <div class="field">
+          <label for="destinatario">Para</label>
+          <input type="email" id="destinatario" name="destinatario" required placeholder="cliente@ejemplo.com">
+        </div>
+        <div class="field">
+          <label for="asunto">Asunto</label>
+          <input type="text" id="asunto" name="asunto" value="{{ asunto_correo_default }}">
+        </div>
+        <div class="field field-full">
+          <label for="cuerpo">Mensaje</label>
+          <textarea id="cuerpo" name="cuerpo" rows="5" placeholder="Escribe el mensaje..."></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary">Enviar</button>
+      </form>
+
+      {% if correos %}
+      <h3 class="list-scroll-title">Mensajes recibidos y enviados</h3>
+      <div class="list-scroll">
+      <table class="table table-compact table-in-scroll correos-table">
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Tipo</th>
+            <th>Asunto</th>
+            <th>De / Para</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for correo in correos %}
+          <tr>
+            <td>{{ correo.fecha.strftime('%d/%m/%Y %H:%M') if correo.fecha else '—' }}</td>
+            <td><span class="badge">{{ correo.direccion }}</span></td>
+            <td>{{ correo.asunto or '—' }}</td>
+            <td>
+              {% if correo.direccion == 'enviado' %}
+              {{ correo.destinatario or '—' }}
+              {% else %}
+              {{ correo.remitente or '—' }}
+              {% endif %}
+            </td>
+            <td>
+              <a href="{{ url_for('expedientes.ver_correo_expediente', expediente_id=expediente.id, correo_id=correo.id) }}"
+                 class="btn btn-sm btn-secondary">Ver</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      </div>
+      {% else %}
+      <p class="muted">Sin correos importados todavía.</p>
+      {% endif %}
+    </section>
+  </div>
+
+  <aside class="card detail-preview" id="document-preview">
+    <div class="detail-preview-header">
+      <h2>Vista previa</h2>
+      <p id="preview-title" class="preview-title muted">Selecciona un documento</p>
+      <a id="preview-open" class="btn btn-sm btn-secondary" href="#" target="_blank" rel="noopener" hidden>Abrir</a>
+    </div>
+    <div id="preview-empty" class="preview-empty muted">
+      Pasa el cursor o haz clic en un documento de la lista para previsualizarlo aquí.
+    </div>
+    <div id="preview-viewer" class="preview-viewer" hidden>
+      <iframe id="preview-iframe" class="preview-frame" title="Vista previa del documento" hidden></iframe>
+      <img id="preview-image" class="preview-image" alt="" hidden>
+    </div>
+    <div id="preview-fallback" class="preview-fallback" hidden>
+      <p class="muted">Este tipo de archivo no se puede previsualizar aquí.</p>
+      <a id="preview-fallback-link" class="btn btn-primary btn-sm" href="#" target="_blank" rel="noopener">Abrir archivo</a>
+    </div>
+  </aside>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/document-drop.js"></script>
+<script src="/static/js/document-preview.js"></script>
+{% endblock %}

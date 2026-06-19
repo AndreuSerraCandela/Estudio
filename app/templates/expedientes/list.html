@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block title %}Expedientes — Estudio{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Expedientes</h1>
+  <form class="search-form" method="get" action="/expedientes">
+    <input type="search" name="q" value="{{ q }}" placeholder="Buscar por nº, cliente, trabajo…">
+    <button type="submit" class="btn btn-secondary">Buscar</button>
+  </form>
+</div>
+
+{% if expedientes %}
+<table class="table">
+  <thead>
+    <tr>
+      <th>Nº Expediente</th>
+      <th>Cliente</th>
+      <th>Trabajo</th>
+      <th>Proyecto</th>
+      <th>Inicio</th>
+      <th>Finalización</th>
+      <th>Diseñador/a</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for exp in expedientes %}
+    <tr>
+      <td><strong>{{ exp.numero_expediente }}</strong></td>
+      <td>{{ exp.cliente }}</td>
+      <td class="truncate">{{ exp.trabajo or '—' }}</td>
+      <td>{{ exp.proyecto or '—' }}</td>
+      <td>{{ exp.fecha_inicio.strftime('%d/%m/%Y') if exp.fecha_inicio else '—' }}</td>
+      <td>{{ exp.fecha_finalizacion.strftime('%d/%m/%Y') if exp.fecha_finalizacion else '—' }}</td>
+      <td>{{ exp.disenador or '—' }}</td>
+      <td><a href="/expedientes/{{ exp.id }}" class="btn btn-sm btn-outline">Ver</a></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="empty-state">
+  <p>No hay expedientes{% if q %} que coincidan con la búsqueda{% endif %}.</p>
+  <a href="/expedientes/nuevo" class="btn btn-primary">Crear primer expediente</a>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block title %}{{ mail.asunto }} — Estudio{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <p class="breadcrumb">
+      <a href="/expedientes">Expedientes</a> /
+      <a href="{{ url_for('expedientes.view_expediente', expediente_id=expediente.id) }}">{{ expediente.numero_expediente }}</a> /
+      Correo
+    </p>
+    <h1>{{ mail.asunto }}</h1>
+    {% if mail.es_respuesta %}
+    <p class="subtitle"><span class="badge">Respuesta</span></p>
+    {% endif %}
+  </div>
+  <div class="header-actions">
+    {% if correo.documento %}
+    <a href="{{ correo.documento.url }}" class="btn btn-secondary btn-sm" target="_blank" rel="noopener">Descargar .eml</a>
+    {% endif %}
+    <a href="{{ url_for('expedientes.view_expediente', expediente_id=expediente.id) }}" class="btn btn-secondary btn-sm">Volver</a>
+  </div>
+</div>
+
+<section class="card mail-view">
+  <dl class="mail-meta">
+    <dt>De</dt>
+    <dd>{{ mail.remitente or '—' }}</dd>
+    <dt>Para</dt>
+    <dd>{{ mail.destinatario or '—' }}</dd>
+    {% if mail.cc %}
+    <dt>CC</dt>
+    <dd>{{ mail.cc }}</dd>
+    {% endif %}
+    <dt>Fecha</dt>
+    <dd>{{ mail.fecha or (correo.fecha.strftime('%d/%m/%Y %H:%M') if correo.fecha else '—') }}</dd>
+    <dt>Tipo</dt>
+    <dd><span class="badge">{{ correo.direccion }}</span></dd>
+  </dl>
+
+  <div class="mail-body">
+    {% if mail.cuerpo_html %}
+    <div class="mail-body-html">{{ mail.cuerpo_html | safe }}</div>
+    {% elif mail.cuerpo_texto %}
+    <pre class="mail-body-text">{{ mail.cuerpo_texto }}</pre>
+    {% else %}
+    <p class="muted">Sin contenido de mensaje.</p>
+    {% endif %}
+  </div>
+
+  {% if mail.cita_html or mail.cita_texto %}
+  <details class="mail-quote">
+    <summary>Mensaje anterior citado</summary>
+    {% if mail.cita_html %}
+    <div class="mail-body-html mail-quote-body">{{ mail.cita_html | safe }}</div>
+    {% else %}
+    <pre class="mail-body-text">{{ mail.cita_texto }}</pre>
+    {% endif %}
+  </details>
+  {% endif %}
+
+  {% if mail.adjuntos %}
+  <div class="mail-attachments">
+    <h3>Adjuntos</h3>
+    <ul>
+      {% for adj in mail.adjuntos %}
+      <li>{{ adj.nombre }} <span class="muted">({{ adj.content_type }}, {{ (adj.size / 1024)|round(1) }} KB)</span></li>
+      {% endfor %}
+    </ul>
+    <p class="muted">Descarga el .eml para abrir los adjuntos.</p>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

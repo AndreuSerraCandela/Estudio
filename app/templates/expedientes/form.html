@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+
+{% block title %}{% if expediente %}Editar{% else %}Nuevo{% endif %} expediente — Estudio{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>{% if expediente %}Editar expediente{% else %}Nuevo expediente{% endif %}</h1>
+  {% if expediente %}
+  <a href="/expedientes/{{ expediente.id }}" class="btn btn-secondary">Cancelar</a>
+  {% else %}
+  <a href="/expedientes" class="btn btn-secondary">Cancelar</a>
+  {% endif %}
+</div>
+
+<form method="post" action="{{ action }}" class="form-grid">
+  <div class="form-section">
+    <h2>Datos generales</h2>
+    <div class="field">
+      <label for="numero_expediente">Nº expediente *</label>
+      <input type="text" id="numero_expediente" name="numero_expediente" required
+             value="{{ expediente.numero_expediente if expediente else siguiente_numero }}">
+      {% if not expediente and siguiente_numero %}
+      <small class="muted">Propuesto automáticamente (siguiente al último expediente)</small>
+      {% endif %}
+    </div>
+    <div class="field field-full autocomplete-wrap">
+      <label for="cliente">Cliente *</label>
+      <input type="text" id="cliente" name="cliente" required autocomplete="off"
+             placeholder="Buscar en Business Central o escribir manualmente"
+             value="{{ expediente.cliente if expediente else '' }}">
+      <input type="hidden" id="bc_cliente_id" name="bc_cliente_id"
+             value="{{ expediente.bc_cliente_id if expediente and expediente.bc_cliente_id else '' }}">
+      <ul id="cliente-suggestions" class="autocomplete-list" hidden></ul>
+      <small class="muted" id="cliente-bc-hint">
+        {% if expediente and expediente.bc_cliente_id %}
+        Vinculado a BC: {{ expediente.bc_cliente_id }}
+        {% else %}
+        Escribe al menos 2 caracteres para buscar en Business Central
+        {% endif %}
+      </small>
+    </div>
+    <div class="field field-full">
+      <label for="trabajo">Trabajo</label>
+      <textarea id="trabajo" name="trabajo" rows="3"
+                placeholder="Descripción del trabajo">{{ expediente.trabajo if expediente else '' }}</textarea>
+    </div>
+  </div>
+
+  <div class="form-section">
+    <h2>Referencia comercial</h2>
+    <div class="field field-full autocomplete-wrap">
+      <label for="comercial">Comercial</label>
+      <input type="text" id="comercial" name="comercial" autocomplete="off"
+             placeholder="Buscar vendedor en Business Central o escribir manualmente"
+             value="{{ expediente.comercial if expediente else '' }}">
+      <input type="hidden" id="bc_comercial_id" name="bc_comercial_id"
+             value="{{ expediente.bc_comercial_id if expediente and expediente.bc_comercial_id else '' }}">
+      <ul id="comercial-suggestions" class="autocomplete-list" hidden></ul>
+      <small class="muted" id="comercial-bc-hint">
+        {% if expediente and expediente.bc_comercial_id %}
+        Vinculado a BC: {{ expediente.bc_comercial_id }}
+        {% else %}
+        Buscar vendedor en Business Central o escribir manualmente
+        {% endif %}
+      </small>
+    </div>
+    <div class="field">
+      <label for="ot">OT (Orden de trabajo)</label>
+      <input type="text" id="ot" name="ot"
+             value="{{ expediente.ot if expediente else '' }}">
+    </div>
+    <div class="field field-full autocomplete-wrap">
+      <label for="proyecto">Proyecto</label>
+      <input type="text" id="proyecto" name="proyecto" autocomplete="off"
+             placeholder="Buscar proyecto en Business Central o escribir manualmente"
+             value="{{ expediente.proyecto if expediente else '' }}">
+      <input type="hidden" id="bc_proyecto_id" name="bc_proyecto_id"
+             value="{{ expediente.bc_proyecto_id if expediente and expediente.bc_proyecto_id else '' }}">
+      <ul id="proyecto-suggestions" class="autocomplete-list" hidden></ul>
+      <small class="muted" id="proyecto-bc-hint">
+        {% if expediente and expediente.bc_proyecto_id %}
+        Vinculado a BC: {{ expediente.bc_proyecto_id }}
+        {% else %}
+        Buscar proyecto en Business Central o escribir manualmente
+        {% endif %}
+      </small>
+    </div>
+  </div>
+
+  <div class="form-section">
+    <h2>Producción</h2>
+    <div class="field">
+      <label for="fecha_inicio">Fecha inicio</label>
+      <input type="date" id="fecha_inicio" name="fecha_inicio"
+             value="{{ expediente.fecha_inicio.isoformat() if expediente and expediente.fecha_inicio else '' }}">
+    </div>
+    <div class="field">
+      <label for="fecha_finalizacion">Fecha finalización</label>
+      <input type="date" id="fecha_finalizacion" name="fecha_finalizacion"
+             value="{{ expediente.fecha_finalizacion.isoformat() if expediente and expediente.fecha_finalizacion else '' }}">
+    </div>
+    <div class="field">
+      <label for="producto">Producto</label>
+      <input type="text" id="producto" name="producto"
+             value="{{ expediente.producto if expediente else '' }}">
+    </div>
+    <div class="field">
+      <label for="acabado">Acabado</label>
+      <input type="text" id="acabado" name="acabado"
+             value="{{ expediente.acabado if expediente else '' }}">
+    </div>
+    <div class="field">
+      <label>Diseñador/a</label>
+      <p class="field-readonly">{{ current_user.nombre_completo }}</p>
+      <small class="muted">Se asigna automáticamente según tu usuario de Control de Presencia</small>
+    </div>
+    <div class="field field-full">
+      <label for="observaciones">Observaciones</label>
+      <textarea id="observaciones" name="observaciones" rows="4">{{ expediente.observaciones if expediente else '' }}</textarea>
+    </div>
+  </div>
+
+  <div class="form-actions field-full">
+    <button type="submit" class="btn btn-primary">
+      {% if expediente %}Guardar cambios{% else %}Crear expediente{% endif %}
+    </button>
+  </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/bc-autocomplete.js"></script>
+{% endblock %}
