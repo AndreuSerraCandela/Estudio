@@ -36,7 +36,16 @@
       headers: { Accept: "application/json" },
       credentials: "same-origin",
     });
-    const payload = await response.json();
+    const text = await response.text();
+    let payload = {};
+    try {
+      payload = text ? JSON.parse(text) : {};
+    } catch (_error) {
+      const preview = text.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 180);
+      throw new Error(
+        `Respuesta inesperada del servidor (${response.status}). ${preview || "No se recibió JSON."}`,
+      );
+    }
     if (!response.ok) {
       throw new Error(payload.error || "No se pudo preparar la vista previa.");
     }
