@@ -5,6 +5,7 @@ from types import SimpleNamespace
 
 from flask import Blueprint, abort, flash, g, jsonify, redirect, render_template, request, url_for, Response
 from flask_login import current_user
+from sqlalchemy.orm import selectinload
 from werkzeug.exceptions import HTTPException
 
 from app.document_utils import documento_to_dict, guess_tipo, preview_kind
@@ -207,6 +208,7 @@ def create_expediente():
         if peticion is not None and peticion.expediente_id is None:
             peticion.expediente_id = expediente.id
             peticion.estado = "en_estudio"
+            _volcar_adjuntos_de_peticiones(db, [peticion])
             db.commit()
 
     return redirect(url_for("expedientes.view_expediente", expediente_id=expediente.id))
@@ -224,10 +226,13 @@ def view_expediente(expediente_id: int):
 
     peticiones = (
         db.query(Peticion)
+        .options(selectinload(Peticion.adjuntos))
         .filter(Peticion.expediente_id == expediente.id)
         .order_by(Peticion.created_at.desc())
         .all()
     )
+    if _volcar_adjuntos_de_peticiones(db, peticiones):
+        db.commit()
 
     return render_template(
         "expedientes/detail.html",
@@ -286,6 +291,35 @@ def update_expediente(expediente_id: int):
     expediente.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
     db.commit()
     return redirect(url_for("expedientes.view_expediente", expediente_id=expediente_id))
+
+
+def _volcar_adjuntos_de_peticiones(db, peticiones: list[Peticion]) -> bool:
+    """Copia al expediente los archivos que llegaron con la petición web."""
+    cambio = False
+    for peticion in peticiones:
+        if not peticion.expediente_id:
+            continue
+        urls = {
+            url
+            for (url,) in db.query(Documento.url).filter(Documento.expediente_id == peticion.expediente_id)
+        }
+        for adjunto in peticion.adjuntos:
+            if not adjunto.url or adjunto.url in urls:
+                continue
+            db.add(
+                Documento(
+                    expediente_id=peticion.expediente_id,
+                    strapi_id=0,
+                    url=adjunto.url,
+                    nombre=adjunto.nombre,
+                    tipo=guess_tipo(adjunto.nombre, adjunto.mime_type),
+                    descripcion=f"Adjunto de la petición #{peticion.id}",
+                    mime_type=adjunto.mime_type,
+                )
+            )
+            urls.add(adjunto.url)
+            cambio = True
+    return cambio
 
 
 def _save_documento(
