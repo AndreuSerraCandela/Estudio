@@ -48,7 +48,7 @@ def crear_sesion_visor(adjunto_id: int):
         return jsonify({"error": "Adjunto no encontrado"}), 404
 
     try:
-        source_response = requests.get(adjunto.url, timeout=90, follow_redirects=True)
+        source_response = requests.get(adjunto.url, timeout=90, allow_redirects=True)
         source_response.raise_for_status()
     except requests.RequestException as exc:
         return jsonify({"error": f"No se pudo leer el adjunto: {exc}"}), 502

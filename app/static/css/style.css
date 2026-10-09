@@ -1069,6 +1069,12 @@ code { font-size: 0.85rem; background: #f8f0f2; color: var(--primary); padding: 
 .peticiones-viewer-header h2 {
   margin: 0;
 }
+.peticiones-viewer-empty[hidden],
+.peticiones-viewer-status[hidden],
+.peticiones-viewer-frame[hidden],
+#peticiones-viewer-open[hidden] {
+  display: none !important;
+}
 .peticiones-viewer-status {
   margin: 0 0 0.75rem;
   padding: 0.65rem 0.85rem;
