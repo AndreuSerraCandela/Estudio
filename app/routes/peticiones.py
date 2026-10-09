@@ -11,6 +11,7 @@ from app.config import settings
 from app.models import Peticion, PeticionAdjunto
 
 bp = Blueprint("peticiones", __name__)
+DOCUMENT_VIEWER_DEFAULT_URL = "https://documentos.malla.es"
 
 
 @bp.before_request
@@ -34,9 +35,10 @@ def listar():
 def _viewer_url(path_or_url: str | None) -> str | None:
     if not path_or_url:
         return None
+    path_or_url = str(path_or_url)
     if path_or_url.startswith(("http://", "https://")):
         return path_or_url
-    return urljoin(f"{settings.document_viewer_url}/", path_or_url.lstrip("/"))
+    return urljoin(f"{getattr(settings, 'document_viewer_url', DOCUMENT_VIEWER_DEFAULT_URL).rstrip('/')}/", path_or_url.lstrip("/"))
 
 
 @bp.post("/adjuntos/<int:adjunto_id>/visor-session")
@@ -67,7 +69,7 @@ def crear_sesion_visor(adjunto_id: int):
 
     try:
         viewer_response = requests.post(
-            f"{settings.document_viewer_url}/api/session",
+            f"{getattr(settings, 'document_viewer_url', DOCUMENT_VIEWER_DEFAULT_URL).rstrip('/')}/api/session",
             json=payload,
             timeout=90,
         )
