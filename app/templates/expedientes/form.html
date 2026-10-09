@@ -3,6 +3,7 @@
 {% block title %}{% if expediente %}Editar{% else %}Nuevo{% endif %} expediente — Estudio{% endblock %}
 
 {% block content %}
+{% set f = expediente if expediente else inicial %}
 <div class="page-header">
   <h1>{% if expediente %}Editar expediente{% else %}Nuevo expediente{% endif %}</h1>
   {% if expediente %}
@@ -12,7 +13,17 @@
   {% endif %}
 </div>
 
+{% if peticion %}
+<div class="flash flash-warning">
+  Expediente a partir de la petición #{{ peticion.id }}
+  {% if peticion.imagen_nueva %}(el comercial indica que es una imagen nueva){% endif %}.
+</div>
+{% endif %}
+
 <form method="post" action="{{ action }}" class="form-grid">
+  {% if peticion %}
+  <input type="hidden" name="peticion_id" value="{{ peticion.id }}">
+  {% endif %}
   <div class="form-section">
     <h2>Datos generales</h2>
     <div class="field">
@@ -27,13 +38,12 @@
       <label for="cliente">Cliente *</label>
       <input type="text" id="cliente" name="cliente" required autocomplete="off"
              placeholder="Buscar en Business Central o escribir manualmente"
-             value="{{ expediente.cliente if expediente else '' }}">
-      <input type="hidden" id="bc_cliente_id" name="bc_cliente_id"
-             value="{{ expediente.bc_cliente_id if expediente and expediente.bc_cliente_id else '' }}">
+             value="{{ f.cliente or '' }}">
+      <input type="hidden" id="bc_cliente_id" name="bc_cliente_id" value="{{ f.bc_cliente_id or '' }}">
       <ul id="cliente-suggestions" class="autocomplete-list" hidden></ul>
       <small class="muted" id="cliente-bc-hint">
-        {% if expediente and expediente.bc_cliente_id %}
-        Vinculado a BC: {{ expediente.bc_cliente_id }}
+        {% if f.bc_cliente_id %}
+        Vinculado a BC: {{ f.bc_cliente_id }}
         {% else %}
         Escribe al menos 2 caracteres para buscar en Business Central
         {% endif %}
@@ -41,8 +51,7 @@
     </div>
     <div class="field field-full">
       <label for="trabajo">Trabajo</label>
-      <textarea id="trabajo" name="trabajo" rows="3"
-                placeholder="Descripción del trabajo">{{ expediente.trabajo if expediente else '' }}</textarea>
+      <textarea id="trabajo" name="trabajo" rows="3" placeholder="Descripción del trabajo">{{ f.trabajo or '' }}</textarea>
     </div>
   </div>
 
@@ -52,13 +61,12 @@
       <label for="comercial">Comercial</label>
       <input type="text" id="comercial" name="comercial" autocomplete="off"
              placeholder="Buscar vendedor en Business Central o escribir manualmente"
-             value="{{ expediente.comercial if expediente else '' }}">
-      <input type="hidden" id="bc_comercial_id" name="bc_comercial_id"
-             value="{{ expediente.bc_comercial_id if expediente and expediente.bc_comercial_id else '' }}">
+             value="{{ f.comercial or '' }}">
+      <input type="hidden" id="bc_comercial_id" name="bc_comercial_id" value="{{ f.bc_comercial_id or '' }}">
       <ul id="comercial-suggestions" class="autocomplete-list" hidden></ul>
       <small class="muted" id="comercial-bc-hint">
-        {% if expediente and expediente.bc_comercial_id %}
-        Vinculado a BC: {{ expediente.bc_comercial_id }}
+        {% if f.bc_comercial_id %}
+        Vinculado a BC: {{ f.bc_comercial_id }}
         {% else %}
         Buscar vendedor en Business Central o escribir manualmente
         {% endif %}
@@ -66,20 +74,18 @@
     </div>
     <div class="field">
       <label for="ot">OT (Orden de trabajo)</label>
-      <input type="text" id="ot" name="ot"
-             value="{{ expediente.ot if expediente else '' }}">
+      <input type="text" id="ot" name="ot" value="{{ f.ot or '' }}">
     </div>
     <div class="field field-full autocomplete-wrap">
       <label for="proyecto">Proyecto</label>
       <input type="text" id="proyecto" name="proyecto" autocomplete="off"
              placeholder="Buscar proyecto en Business Central o escribir manualmente"
-             value="{{ expediente.proyecto if expediente else '' }}">
-      <input type="hidden" id="bc_proyecto_id" name="bc_proyecto_id"
-             value="{{ expediente.bc_proyecto_id if expediente and expediente.bc_proyecto_id else '' }}">
+             value="{{ f.proyecto or '' }}">
+      <input type="hidden" id="bc_proyecto_id" name="bc_proyecto_id" value="{{ f.bc_proyecto_id or '' }}">
       <ul id="proyecto-suggestions" class="autocomplete-list" hidden></ul>
       <small class="muted" id="proyecto-bc-hint">
-        {% if expediente and expediente.bc_proyecto_id %}
-        Vinculado a BC: {{ expediente.bc_proyecto_id }}
+        {% if f.bc_proyecto_id %}
+        Vinculado a BC: {{ f.bc_proyecto_id }}
         {% else %}
         Buscar proyecto en Business Central o escribir manualmente
         {% endif %}
@@ -92,22 +98,20 @@
     <div class="field">
       <label for="fecha_inicio">Fecha inicio</label>
       <input type="date" id="fecha_inicio" name="fecha_inicio"
-             value="{{ expediente.fecha_inicio.isoformat() if expediente and expediente.fecha_inicio else '' }}">
+             value="{{ f.fecha_inicio.isoformat() if f.fecha_inicio else '' }}">
     </div>
     <div class="field">
       <label for="fecha_finalizacion">Fecha finalización</label>
       <input type="date" id="fecha_finalizacion" name="fecha_finalizacion"
-             value="{{ expediente.fecha_finalizacion.isoformat() if expediente and expediente.fecha_finalizacion else '' }}">
+             value="{{ f.fecha_finalizacion.isoformat() if f.fecha_finalizacion else '' }}">
     </div>
     <div class="field">
       <label for="producto">Producto</label>
-      <input type="text" id="producto" name="producto"
-             value="{{ expediente.producto if expediente else '' }}">
+      <input type="text" id="producto" name="producto" value="{{ f.producto or '' }}">
     </div>
     <div class="field">
       <label for="acabado">Acabado</label>
-      <input type="text" id="acabado" name="acabado"
-             value="{{ expediente.acabado if expediente else '' }}">
+      <input type="text" id="acabado" name="acabado" value="{{ f.acabado or '' }}">
     </div>
     <div class="field">
       <label>Diseñador/a</label>
@@ -116,7 +120,7 @@
     </div>
     <div class="field field-full">
       <label for="observaciones">Observaciones</label>
-      <textarea id="observaciones" name="observaciones" rows="4">{{ expediente.observaciones if expediente else '' }}</textarea>
+      <textarea id="observaciones" name="observaciones" rows="4">{{ f.observaciones or '' }}</textarea>
     </div>
   </div>
 

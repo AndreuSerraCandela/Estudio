@@ -15,6 +15,49 @@
   </div>
 </div>
 
+<section class="card" id="arte-final">
+  <h2>Arte final</h2>
+  <p class="muted">El archivo que el comercial consulta en la web de peticiones. El resto de documentos del expediente no se muestran allí.</p>
+  <form method="post" action="{{ url_for('expedientes.upload_documento', expediente_id=expediente.id) }}" enctype="multipart/form-data" class="upload-form">
+    <input type="hidden" name="tipo" value="arte_final">
+    <div class="field">
+      <label for="arte-archivo">Subir arte final</label>
+      <input type="file" id="arte-archivo" name="archivo" required>
+    </div>
+    <div class="field">
+      <label for="arte-descripcion">Descripción</label>
+      <input type="text" id="arte-descripcion" name="descripcion" placeholder="Opcional">
+    </div>
+    <button type="submit" class="btn btn-primary">Publicar arte final</button>
+  </form>
+  {% set artes = expediente.documentos | selectattr('tipo', 'equalto', 'arte_final') | list %}
+  {% if artes %}
+  <ul>
+    {% for doc in artes %}
+    <li><a href="{{ doc.url }}" target="_blank" rel="noopener">{{ doc.nombre }}</a>
+      {% if doc.descripcion %}<span class="muted"> — {{ doc.descripcion }}</span>{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="muted">Todavía no hay arte final en este expediente.</p>
+  {% endif %}
+</section>
+
+{% if peticiones %}
+<section class="card">
+  <h2>Peticiones</h2>
+  <ul>
+    {% for peticion in peticiones %}
+    <li>
+      {{ peticion.fecha.strftime('%d/%m/%Y') }} · {{ peticion.comercial }} · {{ peticion.descripcion or peticion.titulo }}
+      {% if peticion.imagen_nueva %}<span class="badge">Imagen nueva</span>{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
 <div class="detail-page-layout">
   <div class="detail-page-main">
     <div class="detail-grid">
@@ -74,8 +117,8 @@
           <div class="field">
             <label for="tipo">Tipo</label>
             <select id="tipo" name="tipo">
-              {% for t in tipos_documento %}
-              <option value="{{ t }}">{{ t.replace('_', ' ').title() }}</option>
+              {% for value, label in tipos_documento %}
+              <option value="{{ value }}">{{ label }}</option>
               {% endfor %}
             </select>
           </div>

@@ -131,3 +131,75 @@ IF COL_LENGTH('dbo.usuario_config', 'smtp_use_tls') IS NULL
     ALTER TABLE dbo.usuario_config ADD smtp_use_tls BIT NOT NULL CONSTRAINT DF_usuario_config_smtp_tls DEFAULT 1;
 IF COL_LENGTH('dbo.usuario_config', 'smtp_use_ssl') IS NULL
     ALTER TABLE dbo.usuario_config ADD smtp_use_ssl BIT NOT NULL CONSTRAINT DF_usuario_config_smtp_ssl DEFAULT 0;
+
+IF OBJECT_ID('dbo.peticiones', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.peticiones (
+        id INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+        tipo NVARCHAR(20) NOT NULL,
+        empresa NVARCHAR(150) NOT NULL,
+        referencia NVARCHAR(50) NOT NULL,
+        titulo NVARCHAR(255) NOT NULL,
+        cliente NVARCHAR(255) NULL,
+        bc_cliente_id NVARCHAR(100) NULL,
+        comercial NVARCHAR(255) NOT NULL,
+        bc_comercial_id NVARCHAR(50) NULL,
+        fecha DATE NOT NULL,
+        descripcion NVARCHAR(MAX) NULL,
+        expediente_id INT NULL,
+        imagen_nueva BIT NOT NULL CONSTRAINT DF_peticiones_imagen_nueva DEFAULT 0,
+        presencia_user_id INT NOT NULL,
+        estado NVARCHAR(20) NOT NULL CONSTRAINT DF_peticiones_estado DEFAULT 'pendiente',
+        created_at DATETIME2 NOT NULL CONSTRAINT DF_peticiones_created DEFAULT SYSUTCDATETIME(),
+        CONSTRAINT FK_peticiones_expediente FOREIGN KEY (expediente_id)
+            REFERENCES dbo.expedientes(id) ON DELETE SET NULL
+    );
+END;
+
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE name = 'idx_peticiones_referencia' AND object_id = OBJECT_ID('dbo.peticiones')
+)
+    CREATE INDEX idx_peticiones_referencia ON dbo.peticiones(tipo, referencia);
+
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE name = 'idx_peticiones_usuario' AND object_id = OBJECT_ID('dbo.peticiones')
+)
+    CREATE INDEX idx_peticiones_usuario ON dbo.peticiones(presencia_user_id, created_at);
+
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE name = 'idx_peticiones_expediente' AND object_id = OBJECT_ID('dbo.peticiones')
+)
+    CREATE INDEX idx_peticiones_expediente ON dbo.peticiones(expediente_id);
+
+IF OBJECT_ID('dbo.peticion_adjuntos', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.peticion_adjuntos (
+        id INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+        peticion_id INT NOT NULL,
+        nombre NVARCHAR(512) NOT NULL,
+        url NVARCHAR(1024) NOT NULL,
+        mime_type NVARCHAR(128) NULL,
+        created_at DATETIME2 NOT NULL CONSTRAINT DF_peticion_adjuntos_created DEFAULT SYSUTCDATETIME(),
+        CONSTRAINT FK_peticion_adjuntos_peticion FOREIGN KEY (peticion_id)
+            REFERENCES dbo.peticiones(id) ON DELETE CASCADE
+    );
+END;
+
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE name = 'idx_peticion_adjuntos_peticion' AND object_id = OBJECT_ID('dbo.peticion_adjuntos')
+)
+    CREATE INDEX idx_peticion_adjuntos_peticion ON dbo.peticion_adjuntos(peticion_id);
+
+IF OBJECT_ID('dbo.comercial_vinculo', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.comercial_vinculo (
+        presencia_user_id INT NOT NULL PRIMARY KEY,
+        bc_comercial_id NVARCHAR(50) NULL,
+        comercial NVARCHAR(255) NOT NULL,
+        updated_at DATETIME2 NOT NULL CONSTRAINT DF_comercial_vinculo_updated DEFAULT SYSUTCDATETIME()
+    );
+END;

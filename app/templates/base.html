@@ -29,6 +29,7 @@
         {% if current_user.is_authenticated %}
         <nav class="nav-main">
           <a href="/expedientes" class="nav-link">Listado</a>
+          <a href="{{ url_for('peticiones.listar') }}" class="nav-link">Peticiones</a>
           <a href="{{ url_for('configuracion.ver_configuracion') }}" class="nav-link">Configuración</a>
           <a href="/expedientes/nuevo" class="btn btn-primary btn-sm">Nuevo expediente</a>
           <span class="nav-user">

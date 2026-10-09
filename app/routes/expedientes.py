@@ -1,6 +1,7 @@
 import logging
 from datetime import date, datetime, timezone
 from pathlib import Path
+from types import SimpleNamespace
 
 from flask import Blueprint, abort, flash, g, jsonify, redirect, render_template, request, url_for, Response
 from flask_login import current_user
@@ -8,7 +9,7 @@ from werkzeug.exceptions import HTTPException
 
 from app.document_utils import documento_to_dict, guess_tipo, preview_kind
 from app.expediente_utils import siguiente_numero_expediente
-from app.models import Correo, Documento, Expediente, TipoDocumento
+from app.models import Correo, Documento, Expediente, Peticion, TipoDocumento
 from app.services.bc import BCError, bc_service
 from app.services.email_import import parse_eml_bytes, subject_marker
 from app.services.email_view import parse_eml_for_view
@@ -24,6 +25,55 @@ from app.services.user_config import (
 
 bp = Blueprint("expedientes", __name__)
 logger = logging.getLogger(__name__)
+
+TIPOS_DOCUMENTO = [
+    ("mail", "Correo"),
+    ("pdf", "PDF"),
+    ("imagen", "Imagen"),
+    ("arte_final", "Arte final"),
+    ("otro", "Otro"),
+]
+
+
+def _inicial_expediente(peticion: Peticion | None = None) -> SimpleNamespace:
+    vacio = SimpleNamespace(
+        cliente="",
+        bc_cliente_id="",
+        trabajo="",
+        comercial="",
+        bc_comercial_id="",
+        ot="",
+        proyecto="",
+        bc_proyecto_id="",
+        observaciones="",
+        fecha_inicio=None,
+        fecha_finalizacion=None,
+        producto="",
+        acabado="",
+    )
+    if peticion is None:
+        return vacio
+
+    notas = [
+        f"Petición #{peticion.id} de {peticion.comercial} ({peticion.fecha.strftime('%d/%m/%Y')}).",
+        f"Empresa: {peticion.empresa}.",
+    ]
+    if peticion.tipo == "contacto":
+        notas.append(f"Contacto {peticion.referencia}: {peticion.titulo}.")
+    if peticion.imagen_nueva:
+        notas.append("El comercial indica que es una imagen nueva.")
+    if peticion.descripcion:
+        notas.append(peticion.descripcion)
+    vacio.cliente = peticion.cliente or ""
+    vacio.bc_cliente_id = peticion.bc_cliente_id or ""
+    vacio.trabajo = peticion.descripcion or ""
+    vacio.comercial = peticion.comercial or ""
+    vacio.bc_comercial_id = peticion.bc_comercial_id or ""
+    vacio.proyecto = peticion.titulo if peticion.tipo == "proyecto" else ""
+    vacio.bc_proyecto_id = peticion.referencia if peticion.tipo == "proyecto" else ""
+    vacio.observaciones = " ".join(notas)
+    vacio.fecha_inicio = peticion.fecha
+    return vacio
 
 
 @bp.before_request
@@ -122,9 +172,15 @@ def list_expedientes():
 @bp.get("/nuevo")
 def new_expediente_form():
     db = _db()
+    peticion = None
+    peticion_id = request.args.get("peticion_id", type=int)
+    if peticion_id:
+        peticion = db.get(Peticion, peticion_id)
     return render_template(
         "expedientes/form.html",
         expediente=None,
+        inicial=_inicial_expediente(peticion),
+        peticion=peticion,
         action=url_for("expedientes.create_expediente"),
         siguiente_numero=siguiente_numero_expediente(db),
     )
@@ -144,6 +200,15 @@ def create_expediente():
     db.add(expediente)
     db.commit()
     db.refresh(expediente)
+
+    peticion_id = request.form.get("peticion_id", type=int)
+    if peticion_id:
+        peticion = db.get(Peticion, peticion_id)
+        if peticion is not None and peticion.expediente_id is None:
+            peticion.expediente_id = expediente.id
+            peticion.estado = "en_estudio"
+            db.commit()
+
     return redirect(url_for("expedientes.view_expediente", expediente_id=expediente.id))
 
 
@@ -157,12 +222,20 @@ def view_expediente(expediente_id: int):
     user_config = get_usuario_config(db, current_user.id)
     asunto_correo_default = f"{subject_marker(expediente.numero_expediente)} {expediente.cliente}"
 
+    peticiones = (
+        db.query(Peticion)
+        .filter(Peticion.expediente_id == expediente.id)
+        .order_by(Peticion.created_at.desc())
+        .all()
+    )
+
     return render_template(
         "expedientes/detail.html",
         expediente=expediente,
-        tipos_documento=[t.value for t in TipoDocumento],
+        tipos_documento=TIPOS_DOCUMENTO,
         imap_configurado=imap_configurado(user_config),
         asunto_correo_default=asunto_correo_default,
+        peticiones=peticiones,
         correos=sorted(
             expediente.correos,
             key=lambda c: c.fecha or c.created_at,
@@ -181,6 +254,8 @@ def edit_expediente_form(expediente_id: int):
     return render_template(
         "expedientes/form.html",
         expediente=expediente,
+        inicial=_inicial_expediente(),
+        peticion=None,
         action=url_for("expedientes.update_expediente", expediente_id=expediente_id),
     )
 

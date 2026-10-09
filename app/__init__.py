@@ -10,6 +10,7 @@ from app.middleware import ForceHTTPSScheme
 from app.routes.auth import bp as auth_bp
 from app.routes.configuracion import bp as configuracion_bp
 from app.routes.expedientes import bp as expedientes_bp
+from app.routes.peticiones import bp as peticiones_bp
 
 logger = logging.getLogger(__name__)
 
@@ -82,6 +83,7 @@ def create_app() -> Flask:
     app.register_blueprint(auth_bp)
     app.register_blueprint(configuracion_bp, url_prefix="/configuracion")
     app.register_blueprint(expedientes_bp, url_prefix="/expedientes")
+    app.register_blueprint(peticiones_bp, url_prefix="/peticiones")
 
     @app.context_processor
     def inject_user():

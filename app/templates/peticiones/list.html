@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}Peticiones — Estudio{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>Peticiones de comerciales</h1>
+    <p class="subtitle">Solicitudes llegadas desde la web de peticiones.</p>
+  </div>
+</div>
+
+{% if not peticiones %}
+<section class="card">
+  <p class="muted">No hay peticiones.</p>
+</section>
+{% else %}
+<table class="table">
+  <thead>
+    <tr>
+      <th>Fecha</th>
+      <th>Comercial</th>
+      <th>Tipo</th>
+      <th>Referencia</th>
+      <th>Empresa</th>
+      <th>Pedido</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for peticion in peticiones %}
+    <tr>
+      <td>{{ peticion.fecha.strftime('%d/%m/%Y') }}</td>
+      <td>{{ peticion.comercial }}</td>
+      <td>{{ 'Proyecto' if peticion.tipo == 'proyecto' else 'Contacto' }}</td>
+      <td>
+        <strong>{{ peticion.referencia }}</strong><br>
+        <span class="muted">{{ peticion.titulo }}</span>
+        {% if peticion.imagen_nueva %}<br><span class="badge">Imagen nueva</span>{% endif %}
+      </td>
+      <td>{{ peticion.empresa }}</td>
+      <td>
+        {{ peticion.descripcion or '—' }}
+        {% if peticion.adjuntos %}
+        <ul class="adjuntos-resumen">
+          {% for adjunto in peticion.adjuntos %}
+          <li><a href="{{ adjunto.url }}" target="_blank" rel="noopener">{{ adjunto.nombre }}</a></li>
+          {% endfor %}
+        </ul>
+        {% endif %}
+      </td>
+      <td>
+        {% if peticion.expediente %}
+        <a href="{{ url_for('expedientes.view_expediente', expediente_id=peticion.expediente.id) }}">{{ peticion.expediente.numero_expediente }}</a>
+        {% else %}
+        <a class="btn btn-sm btn-primary" href="{{ url_for('expedientes.new_expediente_form', peticion_id=peticion.id) }}">Crear expediente</a>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+{% endblock %}
