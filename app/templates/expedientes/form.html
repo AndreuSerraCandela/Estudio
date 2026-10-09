@@ -74,7 +74,14 @@
     </div>
     <div class="field">
       <label for="ot">OT (Orden de trabajo)</label>
-      <input type="text" id="ot" name="ot" value="{{ f.ot or '' }}">
+      {% if ot_automatica %}
+      <input type="text" id="ot" name="ot" readonly value="{{ f.ot or siguiente_ot or '' }}">
+      <small class="muted">
+        {% if f.ot %}Asignada automáticamente.{% else %}Se asignará el siguiente número al guardar.{% endif %}
+      </small>
+      {% else %}
+      <input type="text" id="ot" name="ot" value="{{ f.ot or '' }}" placeholder="Escribe el número de OT">
+      {% endif %}
     </div>
     <div class="field field-full autocomplete-wrap">
       <label for="proyecto">Proyecto</label>
@@ -130,8 +137,19 @@
     </button>
   </div>
 </form>
+
+<dialog id="ficha-proyecto" class="ficha-dialogo">
+  <div class="ficha-cabecera">
+    <div>
+      <p class="muted ficha-subtitulo">Ficha proyecto</p>
+      <h2 class="ficha-titulo"></h2>
+    </div>
+    <button type="button" class="btn btn-secondary btn-sm ficha-cerrar">Cerrar</button>
+  </div>
+  <div class="ficha-cuerpo"></div>
+</dialog>
 {% endblock %}
 
 {% block scripts %}
-<script src="/static/js/bc-autocomplete.js"></script>
+<script src="/static/js/bc-autocomplete.js?v=2"></script>
 {% endblock %}

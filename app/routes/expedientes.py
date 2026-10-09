@@ -9,9 +9,10 @@ from sqlalchemy.orm import selectinload
 from werkzeug.exceptions import HTTPException
 
 from app.document_utils import documento_to_dict, guess_tipo, preview_kind
-from app.expediente_utils import siguiente_numero_expediente
+from app.expediente_utils import ot_es_automatica, siguiente_numero_expediente, siguiente_numero_ot
 from app.models import Correo, Documento, Expediente, Peticion, TipoDocumento
 from app.services.bc import BCError, bc_service
+from app.services.bc_proyectos import BcProyectoError, buscar_proyectos, ficha_proyecto
 from app.services.email_import import parse_eml_bytes, subject_marker
 from app.services.email_view import parse_eml_for_view
 from app.services.imap_sync import ImapError, buscar_correos_expediente_imap, guardar_copia_enviada_imap
@@ -103,6 +104,23 @@ def _disenador_actual() -> str:
     return current_user.nombre_completo
 
 
+def _contexto_ot(db, actual: str | None = None) -> dict:
+    automatica = ot_es_automatica(db)
+    propuesta = ""
+    if automatica and not (actual or "").strip():
+        propuesta = siguiente_numero_ot(db)
+    return {"ot_automatica": automatica, "siguiente_ot": propuesta}
+
+
+def _aplicar_ot(db, data: dict, actual: str | None = None) -> None:
+    if not ot_es_automatica(db):
+        return
+    if actual and actual.strip():
+        data["ot"] = actual.strip()
+        return
+    data["ot"] = siguiente_numero_ot(db)
+
+
 def _expediente_from_form(form) -> dict:
     return {
         "numero_expediente": form.get("numero_expediente", "").strip(),
@@ -135,12 +153,25 @@ def search_vendedores_api():
 
 @bp.get("/api/proyectos")
 def search_proyectos_api():
-    q = request.args.get("q", "")
     try:
-        proyectos = bc_service.search_proyectos(q)
-        return jsonify([p.to_dict() for p in proyectos])
-    except BCError as exc:
+        return jsonify(buscar_proyectos(request.args.get("q", "")))
+    except BcProyectoError as exc:
         return jsonify({"error": str(exc)}), 502
+
+
+@bp.get("/api/proyectos/ficha")
+def ficha_proyecto_api():
+    empresa = request.args.get("empresa", "").strip()
+    numero = request.args.get("numero", "").strip()
+    if not empresa or not numero:
+        return jsonify({"error": "Faltan la empresa o el número de proyecto."}), 400
+    try:
+        ficha = ficha_proyecto(empresa, numero)
+    except BcProyectoError as exc:
+        return jsonify({"error": str(exc)}), 502
+    if ficha is None:
+        return jsonify({"error": "No se encuentra ese proyecto."}), 404
+    return jsonify(ficha)
 
 
 @bp.get("/api/clientes")
@@ -184,6 +215,7 @@ def new_expediente_form():
         peticion=peticion,
         action=url_for("expedientes.create_expediente"),
         siguiente_numero=siguiente_numero_expediente(db),
+        **_contexto_ot(db),
     )
 
 
@@ -191,6 +223,7 @@ def new_expediente_form():
 def create_expediente():
     db = _db()
     data = _expediente_from_form(request.form)
+    _aplicar_ot(db, data)
     if not data["numero_expediente"] or not data["cliente"]:
         abort(400, description="Nº expediente y cliente son obligatorios")
 
@@ -262,6 +295,7 @@ def edit_expediente_form(expediente_id: int):
         inicial=_inicial_expediente(),
         peticion=None,
         action=url_for("expedientes.update_expediente", expediente_id=expediente_id),
+        **_contexto_ot(db, expediente.ot),
     )
 
 
@@ -273,6 +307,7 @@ def update_expediente(expediente_id: int):
         abort(404, description="Expediente no encontrado")
 
     data = _expediente_from_form(request.form)
+    _aplicar_ot(db, data, expediente.ot)
     existing = (
         db.query(Expediente)
         .filter(

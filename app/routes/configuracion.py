@@ -1,6 +1,7 @@
 from flask import Blueprint, flash, g, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
+from app.expediente_utils import guardar_modo_ot, ot_es_automatica, siguiente_numero_ot
 from app.services.imap_sync import ImapError, ImapSettings, listar_carpetas_imap, probar_conexion_imap
 from app.services.user_config import (
     IMAP_DEFAULTS,
@@ -66,7 +67,18 @@ def ver_configuracion():
         imap_configurado=imap_configurado(config),
         imap_defaults=IMAP_DEFAULTS,
         smtp_defaults=SMTP_DEFAULTS,
+        ot_automatica=ot_es_automatica(db),
+        siguiente_ot=siguiente_numero_ot(db),
     )
+
+
+@bp.post("/ot")
+@login_required
+def guardar_ot():
+    db = _db()
+    guardar_modo_ot(db, request.form.get("ot_modo") == "automatico")
+    flash("Modo del número de OT guardado.", "success")
+    return redirect(url_for("configuracion.ver_configuracion"))
 
 
 @bp.post("/imap")

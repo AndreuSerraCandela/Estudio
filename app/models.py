@@ -127,6 +127,15 @@ class PeticionAdjunto(Base):
     peticion: Mapped["Peticion"] = relationship(back_populates="adjuntos")
 
 
+class EstudioConfig(Base):
+    """Ajustes compartidos del estudio. Una sola fila, id = 1."""
+
+    __tablename__ = "estudio_config"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    ot_automatica: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
 class UsuarioConfig(Base):
     __tablename__ = "usuario_config"
 

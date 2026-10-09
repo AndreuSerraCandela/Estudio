@@ -11,6 +11,29 @@
   </div>
 </div>
 
+<section class="card config-section" id="ot-config">
+  <h2>Número de OT</h2>
+  <p class="muted">Elige si la orden de trabajo se numera sola o la escribes al crear el expediente.</p>
+  <form method="post" action="{{ url_for('configuracion.guardar_ot') }}" class="imap-form">
+    <div class="field">
+      <label class="checkbox-row">
+        <input type="radio" name="ot_modo" value="automatico" {% if ot_automatica %}checked{% endif %}>
+        Automático
+      </label>
+      <small class="muted">El siguiente número será {{ siguiente_ot }}.</small>
+    </div>
+    <div class="field">
+      <label class="checkbox-row">
+        <input type="radio" name="ot_modo" value="manual" {% if not ot_automatica %}checked{% endif %}>
+        Manual
+      </label>
+    </div>
+    <div class="imap-form-actions">
+      <button type="submit" class="btn btn-primary">Guardar</button>
+    </div>
+  </form>
+</section>
+
 <section class="card config-section" id="imap-config">
   <h2>Correo IMAP</h2>
   <p class="muted">

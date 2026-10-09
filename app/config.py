@@ -158,6 +158,9 @@ class Settings:
 
     bc_base_url: str = os.getenv("BC_BASE_URL", "https://bc220.malla.es").rstrip("/")
     bc_company: str = os.getenv("BC_COMPANY", "Malla Publicidad").strip()
+    bc_sql_server: str = os.getenv("BC_SQL_SERVER", os.getenv("DB_SERVER", "localhost")).strip()
+    bc_sql_database: str = os.getenv("BC_SQL_DATABASE", "Malla2009").strip()
+    bc_proyectos_meses: int = int(os.getenv("BC_PROYECTOS_MESES", "6"))
     bc_timeout: int = int(os.getenv("BC_TIMEOUT", "60"))
     bc_username: str
     bc_password: str

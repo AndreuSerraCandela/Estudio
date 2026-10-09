@@ -194,6 +194,20 @@ IF NOT EXISTS (
 )
     CREATE INDEX idx_peticion_adjuntos_peticion ON dbo.peticion_adjuntos(peticion_id);
 
+IF OBJECT_ID('dbo.estudio_config', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.estudio_config (
+        id INT NOT NULL PRIMARY KEY,
+        ot_automatica BIT NOT NULL CONSTRAINT DF_estudio_config_ot_automatica DEFAULT 0
+    );
+END;
+
+IF COL_LENGTH('dbo.estudio_config', 'ot_automatica') IS NULL
+    ALTER TABLE dbo.estudio_config ADD ot_automatica BIT NOT NULL CONSTRAINT DF_estudio_config_ot_automatica DEFAULT 0;
+
+IF OBJECT_ID('dbo.estudio_config', 'U') IS NOT NULL
+    EXEC('IF NOT EXISTS (SELECT 1 FROM dbo.estudio_config WHERE id = 1) INSERT INTO dbo.estudio_config (id, ot_automatica) VALUES (1, 0)');
+
 IF OBJECT_ID('dbo.comercial_vinculo', 'U') IS NULL
 BEGIN
     CREATE TABLE dbo.comercial_vinculo (

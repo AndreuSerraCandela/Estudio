@@ -974,6 +974,62 @@ code { font-size: 0.85rem; background: #f8f0f2; color: var(--primary); padding: 
 }
 .autocomplete-item:hover { background: #f8f0f2; }
 .autocomplete-item span { font-size: 0.8rem; color: var(--muted); }
+.autocomplete-proyecto {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.autocomplete-proyecto > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+  flex: 1;
+}
+.ficha-dialogo {
+  width: min(980px, 94vw);
+  max-height: 88vh;
+  overflow: auto;
+  border: 0;
+  border-radius: var(--radius);
+  padding: 1.25rem 1.4rem;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.25);
+}
+.ficha-dialogo::backdrop { background: rgba(20, 20, 20, 0.45); }
+.ficha-cabecera {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+.ficha-subtitulo { margin: 0; font-size: 0.85rem; }
+.ficha-titulo { margin: 0.15rem 0 0; font-size: 1.45rem; font-weight: 500; }
+.ficha-general {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 2.5rem;
+  padding-top: 0.6rem;
+  border-top: 2px solid var(--text);
+}
+.ficha-campo {
+  display: grid;
+  grid-template-columns: 11rem 1fr;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.3rem 0;
+  font-size: 0.9rem;
+}
+.ficha-etiqueta { color: var(--muted); }
+.ficha-valor {
+  min-height: 1.9rem;
+  padding: 0.3rem 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: #fff;
+}
+.ficha-cuerpo h3 { margin: 1.2rem 0 0.5rem; font-size: 1rem; }
+.ficha-lineas th, .ficha-lineas td { padding: 0.45rem 0.6rem; font-size: 0.88rem; }
 
 @media (max-width: 1100px) {
   .detail-page-layout {
