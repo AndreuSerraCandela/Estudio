@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 
 {% block title %}Peticiones — Estudio{% endblock %}
+{% block main_class %}main-wide{% endblock %}
 
 {% block content %}
 <div class="page-header">
@@ -15,50 +16,84 @@
   <p class="muted">No hay peticiones.</p>
 </section>
 {% else %}
-<table class="table">
-  <thead>
-    <tr>
-      <th>Fecha</th>
-      <th>Comercial</th>
-      <th>Tipo</th>
-      <th>Referencia</th>
-      <th>Empresa</th>
-      <th>Pedido</th>
-      <th></th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for peticion in peticiones %}
-    <tr>
-      <td>{{ peticion.fecha.strftime('%d/%m/%Y') }}</td>
-      <td>{{ peticion.comercial }}</td>
-      <td>{{ 'Proyecto' if peticion.tipo == 'proyecto' else 'Contacto' }}</td>
-      <td>
-        <strong>{{ peticion.referencia }}</strong><br>
-        <span class="muted">{{ peticion.titulo }}</span>
-        {% if peticion.imagen_nueva %}<br><span class="badge">Imagen nueva</span>{% endif %}
-      </td>
-      <td>{{ peticion.empresa }}</td>
-      <td>
-        {{ peticion.descripcion or '—' }}
-        {% if peticion.adjuntos %}
-        <ul class="adjuntos-resumen">
-          {% for adjunto in peticion.adjuntos %}
-          <li><a href="{{ adjunto.url }}" target="_blank" rel="noopener">{{ adjunto.nombre }}</a></li>
-          {% endfor %}
-        </ul>
-        {% endif %}
-      </td>
-      <td>
-        {% if peticion.expediente %}
-        <a href="{{ url_for('expedientes.view_expediente', expediente_id=peticion.expediente.id) }}">{{ peticion.expediente.numero_expediente }}</a>
-        {% else %}
-        <a class="btn btn-sm btn-primary" href="{{ url_for('expedientes.new_expediente_form', peticion_id=peticion.id) }}">Crear expediente</a>
-        {% endif %}
-      </td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
+<div class="peticiones-layout">
+  <section class="card peticiones-list-card">
+    <table class="table table-compact peticiones-table">
+      <thead>
+        <tr>
+          <th>Fecha</th>
+          <th>Comercial</th>
+          <th>Tipo</th>
+          <th>Referencia</th>
+          <th>Empresa</th>
+          <th>Pedido</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for peticion in peticiones %}
+        <tr>
+          <td>{{ peticion.fecha.strftime('%d/%m/%Y') }}</td>
+          <td>{{ peticion.comercial }}</td>
+          <td>{{ 'Proyecto' if peticion.tipo == 'proyecto' else 'Contacto' }}</td>
+          <td>
+            <strong>{{ peticion.referencia }}</strong><br>
+            <span class="muted">{{ peticion.titulo }}</span>
+            {% if peticion.imagen_nueva %}<br><span class="badge">Imagen nueva</span>{% endif %}
+          </td>
+          <td>{{ peticion.empresa }}</td>
+          <td>
+            {{ peticion.descripcion or '—' }}
+            {% if peticion.adjuntos %}
+            <ul class="adjuntos-resumen peticion-adjuntos">
+              {% for adjunto in peticion.adjuntos %}
+              <li>
+                <button type="button"
+                        class="link-button peticion-adjunto-preview"
+                        data-viewer-session-url="{{ url_for('peticiones.crear_sesion_visor', adjunto_id=adjunto.id) }}"
+                        data-original-url="{{ adjunto.url }}"
+                        data-name="{{ adjunto.nombre }}">
+                  {{ adjunto.nombre }}
+                </button>
+                <a href="{{ adjunto.url }}" target="_blank" rel="noopener" class="adjunto-open-original">Abrir</a>
+              </li>
+              {% endfor %}
+            </ul>
+            {% endif %}
+          </td>
+          <td>
+            {% if peticion.expediente %}
+            <a href="{{ url_for('expedientes.view_expediente', expediente_id=peticion.expediente.id) }}">{{ peticion.expediente.numero_expediente }}</a>
+            {% else %}
+            <a class="btn btn-sm btn-primary" href="{{ url_for('expedientes.new_expediente_form', peticion_id=peticion.id) }}">Crear expediente</a>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  <aside class="card peticiones-viewer" id="peticiones-viewer">
+    <div class="peticiones-viewer-header">
+      <div>
+        <h2>Vista previa</h2>
+        <p id="peticiones-viewer-title" class="muted">Selecciona un adjunto</p>
+      </div>
+      <a id="peticiones-viewer-open" href="#" target="_blank" rel="noopener" class="btn btn-sm btn-secondary" hidden>
+        Abrir visor
+      </a>
+    </div>
+    <div id="peticiones-viewer-empty" class="peticiones-viewer-empty muted">
+      Pulsa sobre un adjunto para cargarlo aquí con documentos.malla.es.
+    </div>
+    <p id="peticiones-viewer-status" class="peticiones-viewer-status muted" hidden></p>
+    <iframe id="peticiones-viewer-frame" class="peticiones-viewer-frame" title="Vista previa de adjunto" hidden></iframe>
+  </aside>
+</div>
 {% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/peticiones-viewer.js"></script>
 {% endblock %}

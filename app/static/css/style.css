@@ -1011,3 +1011,103 @@ code { font-size: 0.85rem; background: #f8f0f2; color: var(--primary); padding: 
 .adjuntos-resumen li {
   font-size: 0.88rem;
 }
+
+.link-button {
+  appearance: none;
+  border: none;
+  background: transparent;
+  padding: 0;
+  color: var(--primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.link-button:hover,
+.link-button.is-active {
+  color: var(--primary-hover);
+  text-decoration: underline;
+}
+
+.peticiones-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(360px, 0.65fr);
+  gap: 1rem;
+  align-items: start;
+}
+.peticiones-list-card {
+  padding: 0;
+  overflow: auto;
+}
+.peticiones-table {
+  margin: 0;
+  min-width: 860px;
+}
+.peticion-adjuntos li {
+  display: flex;
+  align-items: baseline;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+.adjunto-open-original {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+.peticiones-viewer {
+  position: sticky;
+  top: 1rem;
+  min-height: 620px;
+  display: flex;
+  flex-direction: column;
+}
+.peticiones-viewer-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+  margin-bottom: 0.75rem;
+}
+.peticiones-viewer-header h2 {
+  margin: 0;
+}
+.peticiones-viewer-status {
+  margin: 0 0 0.75rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: 8px;
+  background: #fff1f4;
+  color: var(--primary);
+  font-size: 0.9rem;
+}
+.peticiones-viewer-status.is-error {
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+.peticiones-viewer-empty {
+  display: grid;
+  place-items: center;
+  min-height: 420px;
+  text-align: center;
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  padding: 1rem;
+  background: #fbfbfb;
+}
+.peticiones-viewer-frame {
+  width: 100%;
+  min-height: 560px;
+  flex: 1;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fff;
+}
+
+@media (max-width: 1100px) {
+  .peticiones-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .peticiones-viewer {
+    position: static;
+    min-height: 420px;
+  }
+}
