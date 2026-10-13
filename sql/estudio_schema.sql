@@ -208,6 +208,28 @@ IF COL_LENGTH('dbo.estudio_config', 'ot_automatica') IS NULL
 IF OBJECT_ID('dbo.estudio_config', 'U') IS NOT NULL
     EXEC('IF NOT EXISTS (SELECT 1 FROM dbo.estudio_config WHERE id = 1) INSERT INTO dbo.estudio_config (id, ot_automatica) VALUES (1, 0)');
 
+IF COL_LENGTH('dbo.expedientes', 'bc_empresa') IS NULL
+    ALTER TABLE dbo.expedientes ADD bc_empresa NVARCHAR(150) NULL;
+IF COL_LENGTH('dbo.expedientes', 'medios_bc_user') IS NULL
+    ALTER TABLE dbo.expedientes ADD medios_bc_user NVARCHAR(150) NULL;
+IF COL_LENGTH('dbo.expedientes', 'medios_empleado') IS NULL
+    ALTER TABLE dbo.expedientes ADD medios_empleado NVARCHAR(50) NULL;
+IF COL_LENGTH('dbo.expedientes', 'medios_nombre') IS NULL
+    ALTER TABLE dbo.expedientes ADD medios_nombre NVARCHAR(255) NULL;
+IF COL_LENGTH('dbo.expedientes', 'medios_email') IS NULL
+    ALTER TABLE dbo.expedientes ADD medios_email NVARCHAR(255) NULL;
+
+IF COL_LENGTH('dbo.documentos', 'aprobacion') IS NULL
+    ALTER TABLE dbo.documentos ADD aprobacion NVARCHAR(30) NOT NULL CONSTRAINT DF_documentos_aprobacion DEFAULT 'no_requiere';
+IF COL_LENGTH('dbo.documentos', 'medios_bc_user') IS NULL
+    ALTER TABLE dbo.documentos ADD medios_bc_user NVARCHAR(150) NULL;
+IF COL_LENGTH('dbo.documentos', 'medios_empleado') IS NULL
+    ALTER TABLE dbo.documentos ADD medios_empleado NVARCHAR(50) NULL;
+IF COL_LENGTH('dbo.documentos', 'medios_nombre') IS NULL
+    ALTER TABLE dbo.documentos ADD medios_nombre NVARCHAR(255) NULL;
+IF COL_LENGTH('dbo.documentos', 'medios_email') IS NULL
+    ALTER TABLE dbo.documentos ADD medios_email NVARCHAR(255) NULL;
+
 IF OBJECT_ID('dbo.comercial_vinculo', 'U') IS NULL
 BEGIN
     CREATE TABLE dbo.comercial_vinculo (

@@ -35,13 +35,13 @@
         <tr>
           <td>{{ peticion.fecha.strftime('%d/%m/%Y') }}</td>
           <td>{{ peticion.comercial }}</td>
-          <td>{{ 'Proyecto' if peticion.tipo == 'proyecto' else 'Contacto' }}</td>
+          <td>{{ 'Proyecto' if peticion.tipo == 'proyecto' else ('Interna' if peticion.tipo == 'interna' else 'Contacto') }}</td>
           <td>
-            <strong>{{ peticion.referencia }}</strong><br>
-            <span class="muted">{{ peticion.titulo }}</span>
+            <strong>{{ peticion.referencia or 'Interna' }}</strong>
+            {% if peticion.tipo != 'interna' %}<br><span class="muted">{{ peticion.titulo }}</span>{% endif %}
             {% if peticion.imagen_nueva %}<br><span class="badge">Imagen nueva</span>{% endif %}
           </td>
-          <td>{{ peticion.empresa }}</td>
+          <td>{{ peticion.empresa or '—' }}</td>
           <td>
             {{ peticion.descripcion or '—' }}
             {% if peticion.adjuntos %}

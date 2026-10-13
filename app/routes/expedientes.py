@@ -12,7 +12,16 @@ from app.document_utils import documento_to_dict, guess_tipo, preview_kind
 from app.expediente_utils import ot_es_automatica, siguiente_numero_expediente, siguiente_numero_ot
 from app.models import Correo, Documento, Expediente, Peticion, TipoDocumento
 from app.services.bc import BCError, bc_service
+from app.config import settings
 from app.services.bc_proyectos import BcProyectoError, buscar_proyectos, ficha_proyecto
+from app.services.medios import (
+    MediosError,
+    PersonaMedios,
+    email_comercial,
+    listar_personas,
+    persona_del_proyecto,
+    persona_por_empleado,
+)
 from app.services.email_import import parse_eml_bytes, subject_marker
 from app.services.email_view import parse_eml_for_view
 from app.services.imap_sync import ImapError, buscar_correos_expediente_imap, guardar_copia_enviada_imap
@@ -47,6 +56,7 @@ def _inicial_expediente(peticion: Peticion | None = None) -> SimpleNamespace:
         ot="",
         proyecto="",
         bc_proyecto_id="",
+        bc_empresa="",
         observaciones="",
         fecha_inicio=None,
         fecha_finalizacion=None,
@@ -58,9 +68,12 @@ def _inicial_expediente(peticion: Peticion | None = None) -> SimpleNamespace:
 
     notas = [
         f"Petición #{peticion.id} de {peticion.comercial} ({peticion.fecha.strftime('%d/%m/%Y')}).",
-        f"Empresa: {peticion.empresa}.",
     ]
-    if peticion.tipo == "contacto":
+    if peticion.empresa:
+        notas.append(f"Empresa: {peticion.empresa}.")
+    if peticion.tipo == "interna":
+        notas.append("Petición interna, sin proyecto ni contacto.")
+    elif peticion.tipo == "contacto":
         notas.append(f"Contacto {peticion.referencia}: {peticion.titulo}.")
     if peticion.imagen_nueva:
         notas.append("El comercial indica que es una imagen nueva.")
@@ -73,6 +86,7 @@ def _inicial_expediente(peticion: Peticion | None = None) -> SimpleNamespace:
     vacio.bc_comercial_id = peticion.bc_comercial_id or ""
     vacio.proyecto = peticion.titulo if peticion.tipo == "proyecto" else ""
     vacio.bc_proyecto_id = peticion.referencia if peticion.tipo == "proyecto" else ""
+    vacio.bc_empresa = peticion.empresa if peticion.tipo == "proyecto" else ""
     vacio.observaciones = " ".join(notas)
     vacio.fecha_inicio = peticion.fecha
     return vacio
@@ -132,6 +146,7 @@ def _expediente_from_form(form) -> dict:
         "ot": form.get("ot", "").strip() or None,
         "proyecto": form.get("proyecto", "").strip() or None,
         "bc_proyecto_id": form.get("bc_proyecto_id", "").strip() or None,
+        "bc_empresa": form.get("bc_empresa", "").strip() or None,
         "fecha_inicio": _parse_date(form.get("fecha_inicio")),
         "fecha_finalizacion": _parse_date(form.get("fecha_finalizacion")),
         "producto": form.get("producto", "").strip() or None,
@@ -267,12 +282,16 @@ def view_expediente(expediente_id: int):
     if _volcar_adjuntos_de_peticiones(db, peticiones):
         db.commit()
 
+    personas_medios, medios_persona, medios_error = _contexto_medios(expediente)
     return render_template(
         "expedientes/detail.html",
         expediente=expediente,
         tipos_documento=TIPOS_DOCUMENTO,
         imap_configurado=imap_configurado(user_config),
         asunto_correo_default=asunto_correo_default,
+        personas_medios=personas_medios,
+        medios_persona=medios_persona,
+        medios_error=medios_error,
         peticiones=peticiones,
         correos=sorted(
             expediente.correos,
@@ -357,6 +376,106 @@ def _volcar_adjuntos_de_peticiones(db, peticiones: list[Peticion]) -> bool:
     return cambio
 
 
+def _contexto_medios(expediente: Expediente) -> tuple[list[PersonaMedios], PersonaMedios | None, str]:
+    if not (expediente.bc_proyecto_id or "").strip():
+        return [], None, ""
+    try:
+        personas = listar_personas()
+        persona = persona_del_proyecto(expediente.bc_empresa, expediente.bc_proyecto_id)
+        if persona is None and expediente.medios_empleado:
+            persona = persona_por_empleado(expediente.medios_empleado)
+        return personas, persona, ""
+    except (MediosError, BcProyectoError) as exc:
+        logger.warning("No se pudo resolver la persona de medios: %s", exc)
+        return [], None, str(exc)
+
+
+def _resolver_medios(expediente: Expediente, empleado: str) -> PersonaMedios | None:
+    elegido = (empleado or "").strip()
+    if elegido:
+        persona = persona_por_empleado(elegido)
+        if persona is not None:
+            return persona
+    try:
+        persona = persona_del_proyecto(expediente.bc_empresa, expediente.bc_proyecto_id)
+    except (MediosError, BcProyectoError) as exc:
+        logger.warning("No se pudo leer la persona del proyecto: %s", exc)
+        persona = None
+    if persona is not None:
+        return persona
+    if expediente.medios_empleado:
+        return persona_por_empleado(expediente.medios_empleado)
+    return None
+
+
+def _campos_arte(expediente: Expediente, tipo: str, empleado: str) -> tuple[dict | None, str | None]:
+    if tipo != TipoDocumento.ARTE_FINAL.value:
+        return None, None
+    if not (expediente.bc_proyecto_id or "").strip():
+        return {"aprobacion": "no_requiere", "validado": False}, None
+    persona = _resolver_medios(expediente, empleado)
+    if persona is None:
+        return None, "Elige la persona de medios antes de publicar el arte final."
+    expediente.medios_bc_user = persona.bc_user or None
+    expediente.medios_empleado = persona.empleado
+    expediente.medios_nombre = persona.nombre
+    expediente.medios_email = persona.email
+    return {
+        "aprobacion": "pendiente",
+        "validado": False,
+        "medios_bc_user": persona.bc_user or None,
+        "medios_empleado": persona.empleado,
+        "medios_nombre": persona.nombre,
+        "medios_email": persona.email,
+    }, None
+
+
+def _avisar_arte(db, expediente: Expediente, documento: Documento) -> None:
+    config = get_usuario_config(db, current_user.id)
+    smtp = smtp_settings_from_config(config)
+    if smtp is None:
+        flash("El arte final está publicado, pero tu usuario no tiene correo y no se ha enviado el aviso.", "warning")
+        return
+    try:
+        if documento.aprobacion == "pendiente":
+            if not (documento.medios_email or "").strip():
+                flash("El arte final está publicado, pero la persona de medios no tiene email.", "warning")
+                return
+            enlace = f"{settings.webestudio_public_url}/arte-final?doc={documento.id}#arte-{documento.id}"
+            enviar_correo_smtp(
+                smtp,
+                documento.medios_email or "",
+                f"Arte final pendiente — {expediente.numero_expediente}",
+                (
+                    f"Hola {documento.medios_nombre or ''},\n\n"
+                    f"El estudio ha publicado un arte final del expediente {expediente.numero_expediente} "
+                    f"({expediente.cliente}), proyecto {expediente.bc_proyecto_id or expediente.proyecto or ''}.\n\n"
+                    f"Ábrelo y apruébalo aquí:\n{enlace}\n\n"
+                    f"Archivo: {documento.nombre}\n"
+                ),
+            )
+            flash(f"Aviso enviado a {documento.medios_nombre}.", "success")
+            return
+        destino = email_comercial(expediente.bc_comercial_id, expediente.comercial)
+        if not destino:
+            flash("El arte final está publicado. No hay email del comercial y no se ha enviado el aviso.", "warning")
+            return
+        enviar_correo_smtp(
+            smtp,
+            destino,
+            f"Arte final disponible — {expediente.numero_expediente}",
+            (
+                f"El arte final del expediente {expediente.numero_expediente} ({expediente.cliente}) ya está disponible.\n\n"
+                f"{documento.url}\n\n"
+                f"Archivo: {documento.nombre}\n"
+            ),
+        )
+        flash("Aviso enviado al comercial.", "success")
+    except SmtpError as exc:
+        logger.warning("No se pudo avisar del arte final %s: %s", documento.id, exc)
+        flash(f"El arte final está publicado, pero el correo no se ha enviado: {exc}", "warning")
+
+
 def _save_documento(
     db,
     expediente_id: int,
@@ -365,6 +484,7 @@ def _save_documento(
     content_type: str | None,
     tipo: str | None = None,
     descripcion: str | None = None,
+    campos: dict | None = None,
 ) -> Documento:
     if not content:
         abort(400, description="El archivo está vacío")
@@ -386,6 +506,7 @@ def _save_documento(
         tipo=tipo,
         descripcion=descripcion,
         mime_type=result.mime_type,
+        **(campos or {}),
     )
     db.add(documento)
     db.commit()
@@ -406,7 +527,13 @@ def upload_documento(expediente_id: int):
 
     tipo = request.form.get("tipo", TipoDocumento.OTRO.value)
     descripcion = request.form.get("descripcion", "").strip() or None
-    _save_documento(
+    if tipo not in {item.value for item in TipoDocumento}:
+        tipo = guess_tipo(archivo.filename, archivo.content_type)
+    campos, error = _campos_arte(expediente, tipo, request.form.get("medios_empleado", ""))
+    if error:
+        flash(error, "warning")
+        return redirect(url_for("expedientes.view_expediente", expediente_id=expediente_id) + "#arte-final")
+    documento = _save_documento(
         db,
         expediente_id,
         archivo.read(),
@@ -414,7 +541,10 @@ def upload_documento(expediente_id: int):
         archivo.content_type,
         tipo=tipo,
         descripcion=descripcion,
+        campos=campos,
     )
+    if campos is not None:
+        _avisar_arte(db, expediente, documento)
     return redirect(url_for("expedientes.view_expediente", expediente_id=expediente_id))
 
 
@@ -431,6 +561,10 @@ def upload_documento_api(expediente_id: int):
 
     tipo = request.form.get("tipo") or None
     descripcion = request.form.get("descripcion", "").strip() or None
+    tipo_resuelto = tipo if tipo in {item.value for item in TipoDocumento} else guess_tipo(archivo.filename, archivo.content_type)
+    campos, error = _campos_arte(expediente, tipo_resuelto, request.form.get("medios_empleado", ""))
+    if error:
+        return jsonify({"error": error}), 400
 
     try:
         documento = _save_documento(
@@ -441,10 +575,13 @@ def upload_documento_api(expediente_id: int):
             archivo.content_type,
             tipo=tipo,
             descripcion=descripcion,
+            campos=campos,
         )
     except HTTPException as exc:
         return jsonify({"error": exc.description}), exc.code
 
+    if campos is not None:
+        _avisar_arte(db, expediente, documento)
     return jsonify(documento_to_dict(documento))
 
 

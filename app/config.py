@@ -167,6 +167,7 @@ class Settings:
 
     strapi_url: str = os.getenv("STRAPI_URL", "https://base64-api.deploy.malla.es").rstrip("/")
     document_viewer_url: str = os.getenv("DOCUMENT_VIEWER_URL", "https://documentos.malla.es").rstrip("/")
+    webestudio_public_url: str = os.getenv("WEBESTUDIO_PUBLIC_URL", "https://peticiones.malla.es").rstrip("/")
     host: str = os.getenv("HOST", os.getenv("FLASK_HOST", "127.0.0.1"))
     port: int = int(os.getenv("PORT", os.getenv("FLASK_PORT", "8000")))
     flask_debug: bool = _env_bool("FLASK_DEBUG")

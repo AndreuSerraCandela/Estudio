@@ -36,6 +36,11 @@ class Expediente(Base):
     bc_cliente_id: Mapped[str | None] = mapped_column(String(100))
     bc_comercial_id: Mapped[str | None] = mapped_column(String(100))
     bc_proyecto_id: Mapped[str | None] = mapped_column(String(100))
+    bc_empresa: Mapped[str | None] = mapped_column(String(150))
+    medios_bc_user: Mapped[str | None] = mapped_column(String(150))
+    medios_empleado: Mapped[str | None] = mapped_column(String(50))
+    medios_nombre: Mapped[str | None] = mapped_column(String(255))
+    medios_email: Mapped[str | None] = mapped_column(String(255))
 
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=text("SYSUTCDATETIME()"))
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=text("SYSUTCDATETIME()"))
@@ -81,6 +86,15 @@ class Documento(Base):
     descripcion: Mapped[str | None] = mapped_column(Text)
     mime_type: Mapped[str | None] = mapped_column(String(128))
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=text("SYSUTCDATETIME()"))
+    aprobacion: Mapped[str] = mapped_column(String(30), default="no_requiere", server_default=text("'no_requiere'"))
+    medios_bc_user: Mapped[str | None] = mapped_column(String(150))
+    medios_empleado: Mapped[str | None] = mapped_column(String(50))
+    medios_nombre: Mapped[str | None] = mapped_column(String(255))
+    medios_email: Mapped[str | None] = mapped_column(String(255))
+    validado: Mapped[bool] = mapped_column(Boolean, default=False, server_default=text("0"))
+    validado_en: Mapped[datetime | None] = mapped_column(DateTime)
+    validado_por: Mapped[int | None] = mapped_column(Integer)
+    validado_por_nombre: Mapped[str | None] = mapped_column(String(255))
 
     expediente: Mapped["Expediente"] = relationship("Expediente", back_populates="documentos")
 

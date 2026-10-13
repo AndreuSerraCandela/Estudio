@@ -89,6 +89,7 @@
              placeholder="Buscar proyecto en Business Central o escribir manualmente"
              value="{{ f.proyecto or '' }}">
       <input type="hidden" id="bc_proyecto_id" name="bc_proyecto_id" value="{{ f.bc_proyecto_id or '' }}">
+      <input type="hidden" id="bc_empresa" name="bc_empresa" value="{{ f.bc_empresa or '' }}">
       <ul id="proyecto-suggestions" class="autocomplete-list" hidden></ul>
       <small class="muted" id="proyecto-bc-hint">
         {% if f.bc_proyecto_id %}
@@ -151,5 +152,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="/static/js/bc-autocomplete.js?v=2"></script>
+<script src="/static/js/bc-autocomplete.js?v=3"></script>
 {% endblock %}

@@ -24,6 +24,7 @@
       hiddenId.value = config.getValue(item);
       setHint(`Vinculado a BC: ${config.getValue(item)}`);
       clearSuggestions();
+      if (config.onSelect) config.onSelect(item);
     }
 
     function renderSuggestions(items) {
@@ -62,6 +63,7 @@
 
     input.addEventListener("input", () => {
       hiddenId.value = "";
+      if (config.onClear) config.onClear();
       setHint(config.searchHint);
 
       const query = input.value.trim();
@@ -255,6 +257,14 @@
       fila.appendChild(texto);
       fila.appendChild(ver);
       return fila;
+    },
+    onSelect: (item) => {
+      const empresa = document.getElementById("bc_empresa");
+      if (empresa) empresa.value = item.empresa || "";
+    },
+    onClear: () => {
+      const empresa = document.getElementById("bc_empresa");
+      if (empresa) empresa.value = "";
     },
   });
 })();

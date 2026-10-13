@@ -17,7 +17,7 @@
 
 <section class="card" id="arte-final">
   <h2>Arte final</h2>
-  <p class="muted">El archivo que el comercial consulta en la web de peticiones. El resto de documentos del expediente no se muestran allí.</p>
+  <p class="muted">El archivo que el comercial consulta en la web de peticiones. Si el expediente tiene proyecto, queda oculto hasta que lo apruebe la persona de medios.</p>
   <form method="post" action="{{ url_for('expedientes.upload_documento', expediente_id=expediente.id) }}" enctype="multipart/form-data" class="upload-form">
     <input type="hidden" name="tipo" value="arte_final">
     <div class="field">
@@ -28,6 +28,26 @@
       <label for="arte-descripcion">Descripción</label>
       <input type="text" id="arte-descripcion" name="descripcion" placeholder="Opcional">
     </div>
+    {% if expediente.bc_proyecto_id %}
+    <div class="field">
+      <label for="medios_empleado">Persona de medios</label>
+      <select id="medios_empleado" name="medios_empleado" {% if not medios_persona %}required{% endif %}>
+        <option value="">Elige a quién avisar</option>
+        {% for persona in personas_medios %}
+        <option value="{{ persona.empleado }}" {% if medios_persona and persona.empleado == medios_persona.empleado %}selected{% endif %}>{{ persona.nombre }}</option>
+        {% endfor %}
+      </select>
+      {% if medios_error %}
+      <small>{{ medios_error }}</small>
+      {% elif medios_persona %}
+      <small class="muted">Se pedirá la aprobación de {{ medios_persona.nombre }}. El comercial lo verá cuando lo apruebe.</small>
+      {% else %}
+      <small>Este proyecto no tiene persona de medios. Elígela para poder publicar. Quedará guardada en el expediente.</small>
+      {% endif %}
+    </div>
+    {% else %}
+    <p class="muted">Sin proyecto de Business Central: se publica y se avisa al comercial, sin aprobación de medios.</p>
+    {% endif %}
     <button type="submit" class="btn btn-primary">Publicar arte final</button>
   </form>
   {% set artes = expediente.documentos | selectattr('tipo', 'equalto', 'arte_final') | list %}
@@ -36,6 +56,13 @@
     {% for doc in artes %}
     <li><a href="{{ doc.url }}" target="_blank" rel="noopener">{{ doc.nombre }}</a>
       {% if doc.descripcion %}<span class="muted"> — {{ doc.descripcion }}</span>{% endif %}
+      {% if doc.aprobacion == 'pendiente' %}
+      <span class="muted"> — Pendiente de {{ doc.medios_nombre or 'medios' }}</span>
+      {% elif doc.aprobacion == 'aprobado' %}
+      <span class="muted"> — Aprobado{% if doc.validado_por_nombre %} por {{ doc.validado_por_nombre }}{% endif %}</span>
+      {% else %}
+      <span class="muted"> — Visible para el comercial</span>
+      {% endif %}
     </li>
     {% endfor %}
   </ul>
