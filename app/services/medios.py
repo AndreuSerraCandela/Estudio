@@ -53,7 +53,7 @@ def persona_del_proyecto(empresa: str | None, numero: str) -> PersonaMedios | No
         companies = [item for item in companies if item.name.lower() == empresa.strip().lower()]
     for company in companies:
         persona = _persona_en_empresa(company, numero)
-        if persona is not None:
+        if persona is not None and _es_de_medios(persona.empleado):
             return persona
     return None
 
@@ -76,18 +76,18 @@ def listar_personas() -> list[PersonaMedios]:
         f"COALESCE(NULLIF(LTRIM(RTRIM(e.[Company E-Mail])), ''), LTRIM(RTRIM(e.[E-Mail]))) AS email, "
         f"u.[User Name] AS bc_user "
         f"FROM {employee} e "
-        f"INNER JOIN {extension} x ON x.[No_] = e.[No_] "
-        f"INNER JOIN [User] u ON u.[User Security ID] = x.[{_USER_BC}] "
-        f"WHERE x.[{_USER_BC}] IS NOT NULL "
+        f"LEFT JOIN {extension} x ON x.[No_] = e.[No_] "
+        f"LEFT JOIN [User] u ON u.[User Security ID] = x.[{_USER_BC}] "
         f"AND x.[{_USER_BC}] <> '00000000-0000-0000-0000-000000000000' "
-        f"AND COALESCE(NULLIF(LTRIM(RTRIM(e.[Company E-Mail])), ''), LTRIM(RTRIM(e.[E-Mail]))) <> '' "
+        f"WHERE COALESCE(NULLIF(LTRIM(RTRIM(e.[Company E-Mail])), ''), LTRIM(RTRIM(e.[E-Mail]))) <> '' "
         f"ORDER BY nombre"
     )
+    codigos = _codigos_medios()
     personas: list[PersonaMedios] = []
     vistos: set[str] = set()
     for row in rows:
         persona = _persona_de_fila(row)
-        if persona is None or persona.empleado in vistos:
+        if persona is None or persona.empleado in vistos or not _coincide(persona.empleado, codigos):
             continue
         vistos.add(persona.empleado)
         personas.append(persona)
@@ -145,6 +145,45 @@ def _persona_en_empresa(company, numero: str) -> PersonaMedios | None:
         [numero],
     )
     return _persona_de_fila(rows[0]) if rows else None
+
+
+def _codigos_medios() -> set[str]:
+    """Códigos de empleado activos cuya sección en Control de Presencia es Medios."""
+    try:
+        from sqlalchemy import text
+
+        from app.presencia.database import PresenciaSessionLocal
+    except Exception as exc:
+        raise MediosError("No se pudo consultar la sección Medios en Control de Presencia") from exc
+    db = PresenciaSessionLocal()
+    try:
+        rows = db.execute(
+            text(
+                "SELECT LTRIM(RTRIM(u.codigo_empleado)) AS codigo, s.nombre AS seccion "
+                "FROM dbo.usuario u "
+                "INNER JOIN dbo.seccion s ON s.id = u.seccion_id "
+                "WHERE u.activo = 1 "
+                "AND u.codigo_empleado IS NOT NULL "
+                "AND LTRIM(RTRIM(u.codigo_empleado)) <> ''"
+            )
+        ).all()
+    except Exception as exc:
+        raise MediosError("No se pudo consultar la sección Medios en Control de Presencia") from exc
+    finally:
+        db.close()
+    return {
+        str(row.codigo).strip()
+        for row in rows
+        if str(row.codigo or "").strip() and str(row.seccion or "").strip().casefold() == "medios"
+    }
+
+
+def _es_de_medios(empleado: str) -> bool:
+    return _coincide(empleado, _codigos_medios())
+
+
+def _coincide(empleado: str, codigos: set[str]) -> bool:
+    return any(mismo_empleado(empleado, codigo) for codigo in codigos)
 
 
 def _persona_de_fila(row: dict) -> PersonaMedios | None:
