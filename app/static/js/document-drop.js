@@ -33,7 +33,9 @@
     tr.dataset.docId = String(doc.id);
     tr.dataset.docNombre = doc.nombre;
     tr.dataset.docTipo = doc.tipo || "";
+    tr.dataset.docMime = doc.mime_type || "";
     tr.dataset.docUrl = doc.url;
+    tr.dataset.viewerSessionUrl = doc.viewer_session_url || "";
     tr.dataset.previewKind = doc.preview_kind || "other";
     tr.dataset.previewSrc = doc.preview_src || doc.url;
 
@@ -150,4 +152,12 @@
   });
 
   document.addEventListener("dragover", (event) => event.preventDefault());
+
+  document.addEventListener("document-preview:files-saved", (event) => {
+    const documents = (event.detail && event.detail.documents) || [];
+    documents.forEach((doc) => {
+      if (tbody.querySelector(`[data-doc-id="${doc.id}"]`)) return;
+      appendDocumentRow(doc);
+    });
+  });
 })();
