@@ -7,7 +7,7 @@
   const emptyState = document.getElementById("documentos-empty");
   const statusEl = document.getElementById("document-upload-status");
 
-  if (!panel || !dropZone || !tbody) return;
+  if (!panel || !tbody) return;
 
   const uploadUrl = panel.dataset.uploadUrl;
   let dragDepth = 0;
@@ -124,7 +124,7 @@
     return [];
   }
 
-  ["dragenter", "dragover"].forEach((eventName) => {
+  if (dropZone) ["dragenter", "dragover"].forEach((eventName) => {
     dropZone.addEventListener(eventName, (event) => {
       event.preventDefault();
       event.stopPropagation();
@@ -133,7 +133,7 @@
     });
   });
 
-  ["dragleave", "drop"].forEach((eventName) => {
+  if (dropZone) ["dragleave", "drop"].forEach((eventName) => {
     dropZone.addEventListener(eventName, (event) => {
       event.preventDefault();
       event.stopPropagation();
@@ -150,8 +150,6 @@
       uploadFiles(extractFiles(event.dataTransfer));
     });
   });
-
-  document.addEventListener("dragover", (event) => event.preventDefault());
 
   document.addEventListener("document-preview:files-saved", (event) => {
     const documents = (event.detail && event.detail.documents) || [];

@@ -140,38 +140,8 @@
                data-upload-url="{{ url_for('expedientes.upload_documento_api', expediente_id=expediente.id) }}">
         <h2>Documentos</h2>
 
-        <form method="post" action="{{ url_for('expedientes.upload_documento', expediente_id=expediente.id) }}"
-              enctype="multipart/form-data" class="upload-form">
-          <div class="field">
-            <label for="archivo">Subir documento</label>
-            <input type="file" id="archivo" name="archivo">
-          </div>
-          <div class="field">
-            <label for="tipo">Tipo</label>
-            <select id="tipo" name="tipo">
-              {% for value, label in tipos_documento %}
-              <option value="{{ value }}">{{ label }}</option>
-              {% endfor %}
-            </select>
-          </div>
-          <div class="field">
-            <label for="descripcion">Descripción</label>
-            <input type="text" id="descripcion" name="descripcion" placeholder="Opcional">
-          </div>
-          <button type="submit" class="btn btn-primary">Subir documento</button>
-        </form>
-
-        <div id="document-drop-zone" class="document-drop-zone">
-          <div class="document-drop-zone-inner">
-            <strong>Arrastra aquí archivos o mensajes de correo</strong>
-            <span>PDF, imágenes, .msg, .eml y otros documentos</span>
-          </div>
-        </div>
-
-        <p id="document-upload-status" class="document-upload-status" hidden></p>
-
         <div id="documentos-empty" class="documentos-empty muted" {% if expediente.documentos %}hidden{% endif %}>
-          Sin documentos adjuntos. Arrastra archivos a la zona de arriba.
+          Sin documentos. Cárgalos desde el visor.
         </div>
 
         <div class="list-scroll" id="documentos-scroll" {% if not expediente.documentos %}hidden{% endif %}>
@@ -358,7 +328,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="/static/js/document-drop.js?v=2"></script>
+<script src="/static/js/document-drop.js?v=3"></script>
 <script src="/static/js/document-list.js"></script>
 <script src="/static/js/document-preview.js?v=2"></script>
 <script src="/static/js/correo-links.js"></script>
