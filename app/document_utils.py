@@ -6,12 +6,8 @@ from app.models import Documento, TipoDocumento
 MAIL_EXTENSIONS = {".msg", ".eml", ".mbox"}
 PDF_EXTENSIONS = {".pdf"}
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".tif", ".tiff"}
-ARTE_EXTENSIONS = {".ai", ".eps", ".psd", ".indd", ".cdr"}
-
-
 def guess_tipo(filename: str, content_type: str | None = None) -> str:
     ext = os.path.splitext(filename)[1].lower()
-    name = filename.lower()
 
     if ext in MAIL_EXTENSIONS or (content_type or "").startswith("message/"):
         return TipoDocumento.MAIL.value
@@ -19,8 +15,6 @@ def guess_tipo(filename: str, content_type: str | None = None) -> str:
         return TipoDocumento.PDF.value
     if ext in IMAGE_EXTENSIONS or (content_type or "").startswith("image/"):
         return TipoDocumento.IMAGEN.value
-    if ext in ARTE_EXTENSIONS or "arte" in name or "final" in name:
-        return TipoDocumento.ARTE_FINAL.value
     return TipoDocumento.OTRO.value
 
 
@@ -57,7 +51,9 @@ def documento_to_dict(documento: Documento) -> dict:
         "tipo_label": documento.tipo.replace("_", " "),
         "descripcion": documento.descripcion,
         "document_id": doc_id,
+        "mime_type": documento.mime_type or "",
         "preview_kind": preview["kind"],
         "preview_src": preview["src"],
+        "viewer_session_url": f"/expedientes/{documento.expediente_id}/documentos/{documento.id}/visor-session",
         "delete_url": f"/expedientes/{documento.expediente_id}/documentos/{documento.id}/eliminar",
     }

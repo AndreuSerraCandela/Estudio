@@ -17,16 +17,19 @@
 
 <section class="card" id="arte-final">
   <h2>Arte final</h2>
-  <p class="muted">El archivo que el comercial consulta en la web de peticiones. Si el expediente tiene proyecto, queda oculto hasta que lo apruebe la persona de medios.</p>
-  <form method="post" action="{{ url_for('expedientes.upload_documento', expediente_id=expediente.id) }}" enctype="multipart/form-data" class="upload-form">
-    <input type="hidden" name="tipo" value="arte_final">
+  <p class="muted">Elige uno de los documentos del expediente. Si ya había un arte final, el documento elegido lo sustituirá. Con proyecto quedará oculto hasta que lo apruebe la persona de medios.</p>
+  {% set artes = expediente.documentos | selectattr('tipo', 'equalto', 'arte_final') | list %}
+  {% set documentos_disponibles = expediente.documentos | rejectattr('tipo', 'equalto', 'arte_final') | list %}
+  {% if documentos_disponibles %}
+  <form method="post" action="{{ url_for('expedientes.publicar_arte_final', expediente_id=expediente.id) }}" class="upload-form">
     <div class="field">
-      <label for="arte-archivo">Subir arte final</label>
-      <input type="file" id="arte-archivo" name="archivo" required>
-    </div>
-    <div class="field">
-      <label for="arte-descripcion">Descripción</label>
-      <input type="text" id="arte-descripcion" name="descripcion" placeholder="Opcional">
+      <label for="arte-documento">Documento del expediente</label>
+      <select id="arte-documento" name="documento_id" required>
+        <option value="">Elige el documento</option>
+        {% for doc in documentos_disponibles %}
+        <option value="{{ doc.id }}">{{ doc.nombre }}{% if doc.descripcion %} — {{ doc.descripcion }}{% endif %}</option>
+        {% endfor %}
+      </select>
     </div>
     {% if expediente.bc_proyecto_id %}
     <div class="field">
@@ -48,9 +51,11 @@
     {% else %}
     <p class="muted">Sin proyecto de Business Central: se publica y se avisa al comercial, sin aprobación de medios.</p>
     {% endif %}
-    <button type="submit" class="btn btn-primary">Publicar arte final</button>
+    <button type="submit" class="btn btn-primary">{% if artes %}Sustituir arte final{% else %}Publicar arte final{% endif %}</button>
   </form>
-  {% set artes = expediente.documentos | selectattr('tipo', 'equalto', 'arte_final') | list %}
+  {% else %}
+  <p class="muted">No hay otro documento disponible. Sube primero el nuevo archivo en la sección Documentos.</p>
+  {% endif %}
   {% if artes %}
   <ul>
     {% for doc in artes %}
@@ -227,7 +232,9 @@
                 data-doc-id="{{ doc.id }}"
                 data-doc-nombre="{{ doc.nombre }}"
                 data-doc-tipo="{{ doc.tipo }}"
+                data-doc-mime="{{ doc.mime_type or '' }}"
                 data-doc-url="{{ doc.url }}"
+                data-viewer-session-url="{{ url_for('expedientes.crear_sesion_visor_documento', expediente_id=expediente.id, documento_id=doc.id) }}"
                 data-preview-kind="{{ preview.kind }}"
                 data-preview-src="{{ preview.src }}">
               <td>
@@ -335,30 +342,24 @@
     </section>
   </div>
 
-  <aside class="card detail-preview" id="document-preview">
+  <aside class="card detail-preview" id="document-preview"
+         data-viewer-origin="{{ visor_url }}"
+         data-upload-url="{{ url_for('expedientes.upload_documento_api', expediente_id=expediente.id) }}">
     <div class="detail-preview-header">
       <h2>Vista previa</h2>
       <p id="preview-title" class="preview-title muted">Selecciona un documento</p>
       <a id="preview-open" class="btn btn-sm btn-secondary" href="#" target="_blank" rel="noopener" hidden>Abrir</a>
     </div>
-    <div id="preview-empty" class="preview-empty muted">
-      Pasa el cursor o haz clic en un documento de la lista para previsualizarlo aquí.
-    </div>
-    <div id="preview-viewer" class="preview-viewer" hidden>
-      <iframe id="preview-iframe" class="preview-frame" title="Vista previa del documento" hidden></iframe>
-      <img id="preview-image" class="preview-image" alt="" hidden>
-    </div>
-    <div id="preview-fallback" class="preview-fallback" hidden>
-      <p class="muted">Este tipo de archivo no se puede previsualizar aquí.</p>
-      <a id="preview-fallback-link" class="btn btn-primary btn-sm" href="#" target="_blank" rel="noopener">Abrir archivo</a>
-    </div>
+    <p id="preview-status" class="document-upload-status" hidden></p>
+    <iframe id="preview-iframe" class="preview-frame" title="Vista previa del documento"
+            src="{{ visor_url }}/embed?factbox=1&language=es-ES"></iframe>
   </aside>
 </div>
 {% endblock %}
 
 {% block scripts %}
-<script src="/static/js/document-drop.js"></script>
+<script src="/static/js/document-drop.js?v=2"></script>
 <script src="/static/js/document-list.js"></script>
-<script src="/static/js/document-preview.js"></script>
+<script src="/static/js/document-preview.js?v=2"></script>
 <script src="/static/js/correo-links.js"></script>
 {% endblock %}

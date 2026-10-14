@@ -36,6 +36,7 @@ BEGIN
         url NVARCHAR(1024) NOT NULL,
         nombre NVARCHAR(512) NOT NULL,
         tipo NVARCHAR(50) NOT NULL CONSTRAINT DF_documentos_tipo DEFAULT 'otro',
+        tipo_origen NVARCHAR(50) NULL,
         descripcion NVARCHAR(MAX) NULL,
         mime_type NVARCHAR(128) NULL,
         created_at DATETIME2 NOT NULL CONSTRAINT DF_documentos_created DEFAULT SYSUTCDATETIME(),
@@ -221,6 +222,8 @@ IF COL_LENGTH('dbo.expedientes', 'medios_email') IS NULL
 
 IF COL_LENGTH('dbo.documentos', 'aprobacion') IS NULL
     ALTER TABLE dbo.documentos ADD aprobacion NVARCHAR(30) NOT NULL CONSTRAINT DF_documentos_aprobacion DEFAULT 'no_requiere';
+IF COL_LENGTH('dbo.documentos', 'tipo_origen') IS NULL
+    ALTER TABLE dbo.documentos ADD tipo_origen NVARCHAR(50) NULL;
 IF COL_LENGTH('dbo.documentos', 'medios_bc_user') IS NULL
     ALTER TABLE dbo.documentos ADD medios_bc_user NVARCHAR(150) NULL;
 IF COL_LENGTH('dbo.documentos', 'medios_empleado') IS NULL

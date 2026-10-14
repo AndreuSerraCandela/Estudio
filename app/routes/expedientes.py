@@ -1,7 +1,12 @@
+import base64
 import logging
+import mimetypes
 from datetime import date, datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
+from urllib.parse import urljoin
+
+import requests
 
 from flask import Blueprint, abort, flash, g, jsonify, redirect, render_template, request, url_for, Response
 from flask_login import current_user
@@ -41,7 +46,6 @@ TIPOS_DOCUMENTO = [
     ("mail", "Correo"),
     ("pdf", "PDF"),
     ("imagen", "Imagen"),
-    ("arte_final", "Arte final"),
     ("otro", "Otro"),
 ]
 
@@ -298,6 +302,7 @@ def view_expediente(expediente_id: int):
             key=lambda c: c.fecha or c.created_at,
             reverse=True,
         ),
+        visor_url=settings.document_viewer_url.rstrip("/"),
     )
 
 
@@ -476,6 +481,71 @@ def _avisar_arte(db, expediente: Expediente, documento: Documento) -> None:
         flash(f"El arte final está publicado, pero el correo no se ha enviado: {exc}", "warning")
 
 
+@bp.post("/<int:expediente_id>/arte-final")
+def publicar_arte_final(expediente_id: int):
+    db = _db()
+    expediente = db.get(Expediente, expediente_id)
+    if not expediente:
+        abort(404, description="Expediente no encontrado")
+
+    try:
+        documento_id = int(request.form.get("documento_id", ""))
+    except (TypeError, ValueError):
+        documento_id = 0
+    documento = (
+        db.query(Documento)
+        .filter(
+            Documento.id == documento_id,
+            Documento.expediente_id == expediente_id,
+            Documento.tipo != TipoDocumento.ARTE_FINAL.value,
+        )
+        .first()
+    )
+    if documento is None:
+        flash("Elige un documento del expediente para publicarlo como arte final.", "warning")
+        return redirect(url_for("expedientes.view_expediente", expediente_id=expediente_id) + "#arte-final")
+
+    campos, error = _campos_arte(
+        expediente,
+        TipoDocumento.ARTE_FINAL.value,
+        request.form.get("medios_empleado", ""),
+    )
+    if error:
+        flash(error, "warning")
+        return redirect(url_for("expedientes.view_expediente", expediente_id=expediente_id) + "#arte-final")
+
+    anteriores = (
+        db.query(Documento)
+        .filter(
+            Documento.expediente_id == expediente_id,
+            Documento.tipo == TipoDocumento.ARTE_FINAL.value,
+            Documento.id != documento.id,
+        )
+        .all()
+    )
+    for anterior in anteriores:
+        anterior.tipo = anterior.tipo_origen or guess_tipo(anterior.nombre, anterior.mime_type)
+        anterior.tipo_origen = None
+
+    documento.tipo_origen = documento.tipo
+    documento.tipo = TipoDocumento.ARTE_FINAL.value
+    documento.aprobacion = campos.get("aprobacion", "no_requiere")
+    documento.medios_bc_user = campos.get("medios_bc_user")
+    documento.medios_empleado = campos.get("medios_empleado")
+    documento.medios_nombre = campos.get("medios_nombre")
+    documento.medios_email = campos.get("medios_email")
+    documento.validado = bool(campos.get("validado", False))
+    documento.validado_en = None
+    documento.validado_por = None
+    documento.validado_por_nombre = None
+    db.commit()
+    db.refresh(documento)
+
+    _avisar_arte(db, expediente, documento)
+    flash(f"«{documento.nombre}» es ahora el arte final del expediente.", "success")
+    return redirect(url_for("expedientes.view_expediente", expediente_id=expediente_id) + "#arte-final")
+
+
 def _save_documento(
     db,
     expediente_id: int,
@@ -484,7 +554,6 @@ def _save_documento(
     content_type: str | None,
     tipo: str | None = None,
     descripcion: str | None = None,
-    campos: dict | None = None,
 ) -> Documento:
     if not content:
         abort(400, description="El archivo está vacío")
@@ -506,7 +575,6 @@ def _save_documento(
         tipo=tipo,
         descripcion=descripcion,
         mime_type=result.mime_type,
-        **(campos or {}),
     )
     db.add(documento)
     db.commit()
@@ -527,13 +595,9 @@ def upload_documento(expediente_id: int):
 
     tipo = request.form.get("tipo", TipoDocumento.OTRO.value)
     descripcion = request.form.get("descripcion", "").strip() or None
-    if tipo not in {item.value for item in TipoDocumento}:
+    if tipo == TipoDocumento.ARTE_FINAL.value or tipo not in {item.value for item in TipoDocumento}:
         tipo = guess_tipo(archivo.filename, archivo.content_type)
-    campos, error = _campos_arte(expediente, tipo, request.form.get("medios_empleado", ""))
-    if error:
-        flash(error, "warning")
-        return redirect(url_for("expedientes.view_expediente", expediente_id=expediente_id) + "#arte-final")
-    documento = _save_documento(
+    _save_documento(
         db,
         expediente_id,
         archivo.read(),
@@ -541,10 +605,7 @@ def upload_documento(expediente_id: int):
         archivo.content_type,
         tipo=tipo,
         descripcion=descripcion,
-        campos=campos,
     )
-    if campos is not None:
-        _avisar_arte(db, expediente, documento)
     return redirect(url_for("expedientes.view_expediente", expediente_id=expediente_id))
 
 
@@ -561,10 +622,11 @@ def upload_documento_api(expediente_id: int):
 
     tipo = request.form.get("tipo") or None
     descripcion = request.form.get("descripcion", "").strip() or None
-    tipo_resuelto = tipo if tipo in {item.value for item in TipoDocumento} else guess_tipo(archivo.filename, archivo.content_type)
-    campos, error = _campos_arte(expediente, tipo_resuelto, request.form.get("medios_empleado", ""))
-    if error:
-        return jsonify({"error": error}), 400
+    tipo_resuelto = (
+        tipo
+        if tipo in {item.value for item in TipoDocumento} and tipo != TipoDocumento.ARTE_FINAL.value
+        else guess_tipo(archivo.filename, archivo.content_type)
+    )
 
     try:
         documento = _save_documento(
@@ -573,15 +635,12 @@ def upload_documento_api(expediente_id: int):
             archivo.read(),
             archivo.filename,
             archivo.content_type,
-            tipo=tipo,
+            tipo=tipo_resuelto,
             descripcion=descripcion,
-            campos=campos,
         )
     except HTTPException as exc:
         return jsonify({"error": exc.description}), exc.code
 
-    if campos is not None:
-        _avisar_arte(db, expediente, documento)
     return jsonify(documento_to_dict(documento))
 
 
@@ -604,6 +663,69 @@ def delete_documento(expediente_id: int, documento_id: int):
     db.delete(documento)
     db.commit()
     return redirect(url_for("expedientes.view_expediente", expediente_id=expediente_id))
+
+
+def _url_visor(path_or_url: str | None) -> str | None:
+    if not path_or_url:
+        return None
+    path_or_url = str(path_or_url)
+    if path_or_url.startswith(("http://", "https://")):
+        return path_or_url
+    return urljoin(f"{settings.document_viewer_url.rstrip('/')}/", path_or_url.lstrip("/"))
+
+
+@bp.post("/<int:expediente_id>/documentos/<int:documento_id>/visor-session")
+def crear_sesion_visor_documento(expediente_id: int, documento_id: int):
+    documento = (
+        _db()
+        .query(Documento)
+        .filter(Documento.id == documento_id, Documento.expediente_id == expediente_id)
+        .first()
+    )
+    if documento is None:
+        return jsonify({"error": "Documento no encontrado"}), 404
+
+    try:
+        origen = requests.get(documento.url, timeout=90, allow_redirects=True)
+        origen.raise_for_status()
+    except requests.RequestException as exc:
+        return jsonify({"error": f"No se pudo leer el documento: {exc}"}), 502
+
+    content_type = (
+        origen.headers.get("content-type", "").split(";", 1)[0].strip()
+        or documento.mime_type
+        or mimetypes.guess_type(documento.nombre)[0]
+        or "application/octet-stream"
+    )
+    try:
+        respuesta = requests.post(
+            f"{settings.document_viewer_url.rstrip('/')}/api/session",
+            json={
+                "fileName": documento.nombre,
+                "contentType": content_type,
+                "contentBase64": base64.b64encode(origen.content).decode("ascii"),
+                "deleteAfter": True,
+                "language": "es-ES",
+            },
+            timeout=90,
+        )
+        respuesta.raise_for_status()
+        data = respuesta.json()
+    except requests.RequestException as exc:
+        return jsonify({"error": f"No se pudo abrir el visor: {exc}"}), 502
+    except ValueError as exc:
+        return jsonify({"error": f"Respuesta inesperada del visor: {exc}"}), 502
+
+    if not isinstance(data, dict) or not data.get("previewId"):
+        return jsonify({"error": "El visor no devolvió una sesión válida"}), 502
+    return jsonify(
+        {
+            "nombre": documento.nombre,
+            "previewId": data.get("previewId"),
+            "embedUrl": _url_visor(data.get("embedUrl")),
+            "expandedUrl": _url_visor(data.get("expandedUrl")),
+        }
+    )
 
 
 @bp.get("/<int:expediente_id>/documentos/<int:documento_id>/vista")

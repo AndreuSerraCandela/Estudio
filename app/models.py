@@ -83,6 +83,7 @@ class Documento(Base):
     url: Mapped[str] = mapped_column(String(1024), nullable=False)
     nombre: Mapped[str] = mapped_column(String(512), nullable=False)
     tipo: Mapped[str] = mapped_column(String(50), default=TipoDocumento.OTRO.value)
+    tipo_origen: Mapped[str | None] = mapped_column(String(50))
     descripcion: Mapped[str | None] = mapped_column(Text)
     mime_type: Mapped[str | None] = mapped_column(String(128))
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=text("SYSUTCDATETIME()"))
