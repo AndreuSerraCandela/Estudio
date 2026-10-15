@@ -17,13 +17,36 @@
 
 <section class="card" id="arte-final">
   <h2>Arte final</h2>
-  <p class="muted">Elige uno de los documentos del expediente. Si ya había un arte final, el documento elegido lo sustituirá. Con proyecto quedará oculto hasta que lo apruebe la persona de medios.</p>
   {% set artes = expediente.documentos | selectattr('tipo', 'equalto', 'arte_final') | list %}
   {% set documentos_disponibles = expediente.documentos | rejectattr('tipo', 'equalto', 'arte_final') | list %}
+  {% if artes %}
+  <ul class="arte-actual-lista">
+    {% for doc in artes %}
+    <li class="arte-actual">
+      {% if doc.aprobacion == 'pendiente' %}
+      <span class="badge">Pendiente</span>
+      {% elif doc.aprobacion == 'aprobado' %}
+      <span class="badge badge-ok">Aprobado</span>
+      {% else %}
+      <span class="badge badge-ok">Publicado</span>
+      {% endif %}
+      <a href="{{ doc.url }}" target="_blank" rel="noopener">{{ doc.nombre }}</a>
+      {% if doc.descripcion %}<span class="muted">{{ doc.descripcion }}</span>{% endif %}
+      {% if doc.aprobacion == 'pendiente' %}
+      <span class="muted">{{ doc.medios_nombre or 'Medios' }}</span>
+      {% elif doc.aprobacion == 'aprobado' and doc.validado_por_nombre %}
+      <span class="muted">{{ doc.validado_por_nombre }}</span>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="muted arte-vacio">Todavía no hay arte final en este expediente.</p>
+  {% endif %}
   {% if documentos_disponibles %}
-  <form method="post" action="{{ url_for('expedientes.publicar_arte_final', expediente_id=expediente.id) }}" class="upload-form">
+  <form method="post" action="{{ url_for('expedientes.publicar_arte_final', expediente_id=expediente.id) }}" class="arte-publicar{% if not expediente.bc_proyecto_id %} arte-publicar-simple{% endif %}">
     <div class="field">
-      <label for="arte-documento">Documento del expediente</label>
+      <label for="arte-documento">Documento</label>
       <select id="arte-documento" name="documento_id" required>
         <option value="">Elige el documento</option>
         {% for doc in documentos_disponibles %}
@@ -40,39 +63,21 @@
         <option value="{{ persona.empleado }}" {% if medios_persona and persona.empleado == medios_persona.empleado %}selected{% endif %}>{{ persona.nombre }}</option>
         {% endfor %}
       </select>
-      {% if medios_error %}
-      <small>{{ medios_error }}</small>
-      {% elif medios_persona %}
-      <small class="muted">Se pedirá la aprobación de {{ medios_persona.nombre }}. El comercial lo verá cuando lo apruebe.</small>
-      {% else %}
-      <small>Este proyecto no tiene persona de medios. Elígela para poder publicar. Quedará guardada en el expediente.</small>
-      {% endif %}
     </div>
-    {% else %}
-    <p class="muted">Sin proyecto de Business Central: se publica y se avisa al comercial, sin aprobación de medios.</p>
     {% endif %}
-    <button type="submit" class="btn btn-primary">{% if artes %}Sustituir arte final{% else %}Publicar arte final{% endif %}</button>
+    <button type="submit" class="btn btn-primary">{% if artes %}Sustituir{% else %}Publicar{% endif %}</button>
+    {% if medios_error %}
+    <p class="arte-nota">{{ medios_error }}</p>
+    {% elif expediente.bc_proyecto_id and medios_persona %}
+    <p class="arte-nota muted">{{ medios_persona.nombre }} lo aprueba antes de que lo vea el comercial.</p>
+    {% elif expediente.bc_proyecto_id %}
+    <p class="arte-nota">Elige a la persona de medios. Quedará guardada en el expediente.</p>
+    {% else %}
+    <p class="arte-nota muted">Sin proyecto: se publica y se avisa al comercial.</p>
+    {% endif %}
   </form>
   {% else %}
-  <p class="muted">No hay otro documento disponible. Sube primero el nuevo archivo en la sección Documentos.</p>
-  {% endif %}
-  {% if artes %}
-  <ul>
-    {% for doc in artes %}
-    <li><a href="{{ doc.url }}" target="_blank" rel="noopener">{{ doc.nombre }}</a>
-      {% if doc.descripcion %}<span class="muted"> — {{ doc.descripcion }}</span>{% endif %}
-      {% if doc.aprobacion == 'pendiente' %}
-      <span class="muted"> — Pendiente de {{ doc.medios_nombre or 'medios' }}</span>
-      {% elif doc.aprobacion == 'aprobado' %}
-      <span class="muted"> — Aprobado{% if doc.validado_por_nombre %} por {{ doc.validado_por_nombre }}{% endif %}</span>
-      {% else %}
-      <span class="muted"> — Visible para el comercial</span>
-      {% endif %}
-    </li>
-    {% endfor %}
-  </ul>
-  {% else %}
-  <p class="muted">Todavía no hay arte final en este expediente.</p>
+  <p class="muted">No hay otro documento. Cárgalo antes desde el visor.</p>
   {% endif %}
 </section>
 
