@@ -124,6 +124,25 @@ a:hover { color: var(--primary-hover); text-decoration: underline; }
   flex-wrap: wrap;
 }
 
+.filtro-estado {
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+}
+.filtro-estado a {
+  padding: 0.4rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.filtro-estado a.is-active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
 .nav-link {
   color: var(--muted);
   font-weight: 600;

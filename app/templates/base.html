@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/css/style.css?v=3">
+  <link rel="stylesheet" href="/static/css/style.css?v=4">
 </head>
 <body>
   <header class="header">
@@ -28,7 +28,7 @@
         </a>
         {% if current_user.is_authenticated %}
         <nav class="nav-main">
-          <a href="/expedientes" class="nav-link">Listado</a>
+          <a href="/expedientes" class="nav-link">Expedientes</a>
           <a href="{{ url_for('peticiones.listar') }}" class="nav-link">Peticiones</a>
           <a href="{{ url_for('configuracion.ver_configuracion') }}" class="nav-link">Configuración</a>
           <a href="/expedientes/nuevo" class="btn btn-primary btn-sm">Nuevo expediente</a>

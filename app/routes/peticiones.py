@@ -26,10 +26,14 @@ def require_login():
 
 @bp.get("")
 def listar():
-    peticiones = (
-        g.db.query(Peticion).options(selectinload(Peticion.adjuntos)).order_by(Peticion.created_at.desc()).all()
-    )
-    return render_template("peticiones/list.html", peticiones=peticiones)
+    filtro = request.args.get("estado", "pendiente")
+    if filtro not in {"pendiente", "todas"}:
+        filtro = "pendiente"
+    consulta = g.db.query(Peticion).options(selectinload(Peticion.adjuntos))
+    if filtro == "pendiente":
+        consulta = consulta.filter(Peticion.estado == "pendiente")
+    peticiones = consulta.order_by(Peticion.created_at.desc()).all()
+    return render_template("peticiones/list.html", peticiones=peticiones, filtro=filtro)
 
 
 def _viewer_url(path_or_url: str | None) -> str | None:

@@ -9,11 +9,15 @@
     <h1>Peticiones de comerciales</h1>
     <p class="subtitle">Solicitudes llegadas desde la web de peticiones.</p>
   </div>
+  <nav class="filtro-estado" aria-label="Filtrar peticiones">
+    <a href="{{ url_for('peticiones.listar', estado='pendiente') }}" class="{% if filtro == 'pendiente' %}is-active{% endif %}">Pendientes</a>
+    <a href="{{ url_for('peticiones.listar', estado='todas') }}" class="{% if filtro == 'todas' %}is-active{% endif %}">Todas</a>
+  </nav>
 </div>
 
 {% if not peticiones %}
 <section class="card">
-  <p class="muted">No hay peticiones.</p>
+  <p class="muted">{% if filtro == 'pendiente' %}No hay peticiones pendientes.{% else %}No hay peticiones.{% endif %}</p>
 </section>
 {% else %}
 <div class="peticiones-layout">
