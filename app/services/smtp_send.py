@@ -7,6 +7,8 @@ from dataclasses import dataclass
 from email.message import EmailMessage
 from email.utils import formatdate, make_msgid
 
+from app.services.email_view import cuerpo_a_html
+
 
 class SmtpError(Exception):
     pass
@@ -36,6 +38,13 @@ def enviar_correo_smtp(
     msg["Date"] = formatdate(localtime=True)
     msg["Message-ID"] = make_msgid(domain=(settings.username.split("@")[-1] or None))
     msg.set_content(cuerpo)
+    msg.add_alternative(
+        (
+            "<html><body style=\"font-family:Segoe UI,sans-serif;font-size:15px;line-height:1.5\">"
+            f"{cuerpo_a_html(cuerpo)}</body></html>"
+        ),
+        subtype="html",
+    )
 
     try:
         smtp_class = smtplib.SMTP_SSL if settings.use_ssl else smtplib.SMTP

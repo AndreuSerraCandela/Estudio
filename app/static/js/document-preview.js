@@ -9,12 +9,36 @@
   const statusEl = document.getElementById("preview-status");
   const viewerOrigin = previewPanel.dataset.viewerOrigin || "";
   const uploadUrl = previewPanel.dataset.uploadUrl || "";
+  const visorSrc = iframeEl.src;
   const sessionCache = new Map();
 
   let lockedRow = null;
   let viewerReady = false;
   let pendingRow = null;
   let hoverTimer = null;
+  let mostrandoCorreo = false;
+
+  function esCorreo(row) {
+    const nombre = (row.dataset.docNombre || "").toLowerCase();
+    if (nombre.endsWith(".msg")) return false;
+    if (nombre.endsWith(".eml") || nombre.endsWith(".mbox")) return true;
+    return (row.dataset.docTipo || "") === "mail" || (row.dataset.previewKind || "") === "mail";
+  }
+
+  function mostrarCorreo(row) {
+    const src = row.dataset.previewSrc;
+    if (!src) {
+      setStatus("Este correo no se puede previsualizar.", true);
+      return;
+    }
+    setStatus("");
+    const absoluto = new URL(src, location.href).href;
+    mostrandoCorreo = true;
+    if (iframeEl.src !== absoluto) {
+      viewerReady = false;
+      iframeEl.src = absoluto;
+    }
+  }
 
   function rows() {
     return Array.from(tbody.querySelectorAll(".doc-preview-row")).filter((row) => !row.hidden);
@@ -86,6 +110,18 @@
       }
     } else {
       mark(row);
+    }
+    if (esCorreo(row)) {
+      if (openEl && row.dataset.previewSrc) openEl.href = row.dataset.previewSrc;
+      mostrarCorreo(row);
+      return;
+    }
+    if (mostrandoCorreo) {
+      mostrandoCorreo = false;
+      viewerReady = false;
+      pendingRow = row;
+      iframeEl.src = visorSrc;
+      return;
     }
     if (!viewerReady) {
       pendingRow = row;
@@ -238,6 +274,7 @@
   }
 
   iframeEl.addEventListener("load", () => {
+    if (mostrandoCorreo) return;
     viewerReady = true;
     const row = pendingRow || lockedRow || rows()[0];
     if (row) showPreview(row);

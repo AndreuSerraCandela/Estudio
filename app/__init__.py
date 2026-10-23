@@ -6,6 +6,7 @@ from app.auth_login import init_auth
 from app.config import settings
 from app.database import SessionLocal, init_db
 from app.document_utils import documento_preview_attrs
+from app.services.email_view import enlazar_texto
 from app.middleware import ForceHTTPSScheme
 from app.routes.auth import bp as auth_bp
 from app.routes.configuracion import bp as configuracion_bp
@@ -79,6 +80,8 @@ def create_app() -> Flask:
         db = g.pop("db", None)
         if db is not None:
             db.close()
+
+    app.add_template_filter(enlazar_texto, name="enlazar")
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(configuracion_bp, url_prefix="/configuracion")

@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import html
 import re
 from dataclasses import dataclass, field
+
+from markupsafe import Markup
 from email import policy
 from email.message import Message
 from email.parser import BytesParser
@@ -87,6 +90,35 @@ def _unwrap_message(msg: Message) -> Message:
             continue
         break
     return msg
+
+
+_URL_RE = re.compile(r"https?://[^\s<>'\"]+")
+_URL_TRAIL = ".,;:!?)]"
+
+
+def enlazar_texto(text: str | None) -> Markup:
+    """Convierte las direcciones http de un texto plano en enlaces."""
+    if not text:
+        return Markup("")
+    parts: list[str] = []
+    last = 0
+    for match in _URL_RE.finditer(text):
+        parts.append(html.escape(text[last : match.start()]))
+        url = match.group(0)
+        trail = ""
+        while url and url[-1] in _URL_TRAIL:
+            trail = url[-1] + trail
+            url = url[:-1]
+        href = html.escape(url, quote=True)
+        parts.append(f'<a href="{href}" target="_blank" rel="noopener noreferrer">{html.escape(url)}</a>')
+        parts.append(html.escape(trail))
+        last = match.end()
+    parts.append(html.escape(text[last:]))
+    return Markup("".join(parts))
+
+
+def cuerpo_a_html(cuerpo: str) -> str:
+    return str(enlazar_texto(cuerpo)).replace("\n", "<br>\n")
 
 
 def _sanitize_html(raw: str) -> str:

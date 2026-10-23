@@ -95,8 +95,6 @@
   </ul>
   {% else %}
   <p class="muted arte-vacio">Todavía no hay arte final en este expediente.</p>
-  {% endif %}
-
   <form method="post" action="{{ url_for('expedientes.publicar_arte_final', expediente_id=expediente.id) }}" enctype="multipart/form-data" class="arte-nuevo">
     <h3>Nuevo arte final</h3>
     <div class="field">
@@ -139,8 +137,64 @@
     <p class="arte-nota muted">Sin proyecto: se publica y se avisa al comercial. Los archivos nuevos también se guardan en Documentos.</p>
     {% endif %}
   </form>
+  {% endif %}
   </div>
 </section>
+
+{% if expediente.artes %}
+<section class="card fasttab arte-nuevo-pane is-collapsed" id="arte-final-nuevo">
+  <div class="fasttab-head">
+    <button type="button" class="fasttab-toggle" aria-expanded="false" aria-controls="arte-final-nuevo-body">
+      <span class="fasttab-chevron" aria-hidden="true"></span>
+      Nuevo arte final
+    </button>
+    <p class="pane-resumen">Otra versión del mismo expediente</p>
+  </div>
+  <div class="fasttab-body" id="arte-final-nuevo-body">
+  <form method="post" action="{{ url_for('expedientes.publicar_arte_final', expediente_id=expediente.id) }}" enctype="multipart/form-data" class="arte-nuevo">
+    <div class="field">
+      <label for="arte-descripcion">Descripción</label>
+      <input id="arte-descripcion" name="descripcion" maxlength="500" required placeholder="Motivo, colores, versión…">
+    </div>
+    {% if expediente.documentos %}
+    <fieldset class="arte-docs">
+      <legend>Documentos del expediente</legend>
+      {% for doc in expediente.documentos %}
+      <label><input type="checkbox" name="documento_ids" value="{{ doc.id }}"> {{ doc.nombre }}</label>
+      {% endfor %}
+    </fieldset>
+    {% endif %}
+    <div class="arte-nuevo-fila">
+      <div class="field">
+        <label for="arte-archivos">Archivos nuevos</label>
+        <input id="arte-archivos" type="file" name="archivos" multiple>
+      </div>
+      {% if expediente.bc_proyecto_id %}
+      <div class="field">
+        <label for="medios_empleado">Persona de medios</label>
+        <select id="medios_empleado" name="medios_empleado" {% if not medios_persona %}required{% endif %}>
+          <option value="">Elige a quién avisar</option>
+          {% for persona in personas_medios %}
+          <option value="{{ persona.empleado }}" {% if medios_persona and persona.empleado == medios_persona.empleado %}selected{% endif %}>{{ persona.nombre }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% endif %}
+      <button type="submit" class="btn btn-primary">Crear arte final</button>
+    </div>
+    {% if medios_error %}
+    <p class="arte-nota">{{ medios_error }}</p>
+    {% elif expediente.bc_proyecto_id and medios_persona %}
+    <p class="arte-nota muted">{{ medios_persona.nombre }} lo aprueba antes de que lo vea el comercial. Los archivos nuevos también se guardan en Documentos.</p>
+    {% elif expediente.bc_proyecto_id %}
+    <p class="arte-nota">Elige a la persona de medios. Quedará guardada en el expediente.</p>
+    {% else %}
+    <p class="arte-nota muted">Sin proyecto: se publica y se avisa al comercial. Los archivos nuevos también se guardan en Documentos.</p>
+    {% endif %}
+  </form>
+  </div>
+</section>
+{% endif %}
 
 <section class="card expediente-pane" id="peticiones">
   {% set texto_peticion = '' %}
@@ -495,7 +549,11 @@ document.querySelectorAll(".fasttab-toggle").forEach((button) => {
   const pane = button.closest(".expediente-pane, .fasttab");
   if (!pane) return;
   const key = "expediente-fasttab-" + pane.id;
-  if (sessionStorage.getItem(key) === "0") {
+  const stored = sessionStorage.getItem(key);
+  if (stored === "1") {
+    pane.classList.remove("is-collapsed");
+    button.setAttribute("aria-expanded", "true");
+  } else if (stored === "0") {
     pane.classList.add("is-collapsed");
     button.setAttribute("aria-expanded", "false");
   }
@@ -517,6 +575,6 @@ if (medios && resumenArte) {
 <script src="/static/js/bc-autocomplete.js?v=3"></script>
 <script src="/static/js/document-drop.js?v=4"></script>
 <script src="/static/js/document-list.js?v=4"></script>
-<script src="/static/js/document-preview.js?v=5"></script>
+<script src="/static/js/document-preview.js?v=6"></script>
 <script src="/static/js/correo-links.js"></script>
 {% endblock %}

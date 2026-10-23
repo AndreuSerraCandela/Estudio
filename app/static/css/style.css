@@ -467,6 +467,10 @@ textarea { resize: vertical; }
 #peticiones:target,
 #arte-final:target { display: block; }
 
+.arte-nuevo-pane { display: none; }
+.expediente-shell:has(#arte-final:target) .arte-nuevo-pane { display: block; }
+.arte-nuevo-pane .arte-nuevo { margin-top: 0; }
+
 .expediente-shell:has(#peticiones:target) .correos-section,
 .expediente-shell:has(#arte-final:target) .correos-section { display: none; }
 
@@ -1156,6 +1160,11 @@ textarea { resize: vertical; }
   word-break: break-word;
   font-family: inherit;
   font-size: 0.95rem;
+}
+.mail-body a,
+.mail-quote a {
+  text-decoration: underline;
+  word-break: break-all;
 }
 .mail-quote {
   margin-top: 1rem;

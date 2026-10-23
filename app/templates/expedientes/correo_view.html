@@ -43,7 +43,7 @@
     {% if mail.cuerpo_html %}
     <div class="mail-body-html">{{ mail.cuerpo_html | safe }}</div>
     {% elif mail.cuerpo_texto %}
-    <pre class="mail-body-text">{{ mail.cuerpo_texto }}</pre>
+    <div class="mail-body-text">{{ mail.cuerpo_texto | enlazar }}</div>
     {% else %}
     <p class="muted">Sin contenido de mensaje.</p>
     {% endif %}
@@ -55,7 +55,7 @@
     {% if mail.cita_html %}
     <div class="mail-body-html mail-quote-body">{{ mail.cita_html | safe }}</div>
     {% else %}
-    <pre class="mail-body-text">{{ mail.cita_texto }}</pre>
+    <div class="mail-body-text">{{ mail.cita_texto | enlazar }}</div>
     {% endif %}
   </details>
   {% endif %}
