@@ -264,6 +264,92 @@
         </div>
       </section>
 
+    <section class="card correos-section">
+      <div class="correos-header">
+        <h2>Correo</h2>
+        <div class="correos-header-actions">
+          <form method="post" action="{{ url_for('expedientes.sincronizar_correos_expediente', expediente_id=expediente.id) }}">
+            <button type="submit" class="btn btn-secondary btn-sm">Sincronizar correos</button>
+          </form>
+          <a href="{{ url_for('configuracion.ver_configuracion') }}" class="btn btn-secondary btn-sm">Configuración IMAP</a>
+        </div>
+      </div>
+
+      <p class="muted correos-help">
+        Etiqueta obligatoria en el asunto: <code>[EXP-{{ expediente.numero_expediente }}]</code>.
+        Los correos enviados desde Estudio se guardan automáticamente en el expediente.
+        Usa «Sincronizar correos» para importar respuestas o mensajes enviados fuera de Estudio.
+        {% if not imap_configurado %}
+        <a href="{{ url_for('configuracion.ver_configuracion') }}">Configura IMAP</a> antes de enviar o sincronizar.
+        {% endif %}
+      </p>
+
+      <form method="post" action="{{ url_for('expedientes.enviar_correo_expediente', expediente_id=expediente.id) }}" class="correo-form">
+        <div class="field">
+          <label for="destinatario">Para</label>
+          <input type="email" id="destinatario" name="destinatario" required placeholder="cliente@ejemplo.com">
+        </div>
+        <div class="field">
+          <label for="asunto">Asunto</label>
+          <input type="text" id="asunto" name="asunto" value="{{ asunto_correo_default }}">
+        </div>
+        <div class="field field-full">
+          <label for="cuerpo">Mensaje</label>
+          <textarea id="cuerpo" name="cuerpo" rows="5" placeholder="Escribe el mensaje..."></textarea>
+        </div>
+        <div class="field field-full">
+          <label>Documentos como enlaces</label>
+          <div id="correo-document-drop" class="correo-link-drop" tabindex="0">
+            <strong>Arrastra aquí documentos de la lista</strong>
+            <span>Se enviarán como enlaces en el cuerpo del correo, no como adjuntos.</span>
+          </div>
+          <ul id="correo-document-links" class="correo-link-list" hidden></ul>
+        </div>
+        <button type="submit" class="btn btn-primary">Enviar</button>
+      </form>
+
+      {% if correos %}
+      <h3 class="list-scroll-title">Mensajes recibidos y enviados</h3>
+      <div class="list-scroll">
+      <table class="table table-compact table-in-scroll correos-table">
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Tipo</th>
+            <th>Asunto</th>
+            <th>De / Para</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for correo in correos %}
+          <tr>
+            <td>{{ correo.fecha.strftime('%d/%m/%Y %H:%M') if correo.fecha else '—' }}</td>
+            <td><span class="badge">{{ correo.direccion }}</span></td>
+            <td>{{ correo.asunto or '—' }}</td>
+            <td>
+              {% if correo.direccion == 'enviado' %}
+              {{ correo.destinatario or '—' }}
+              {% else %}
+              {{ correo.remitente or '—' }}
+              {% endif %}
+            </td>
+            <td>
+              <a href="{{ url_for('expedientes.ver_correo_expediente', expediente_id=expediente.id, correo_id=correo.id) }}"
+                 class="btn btn-sm btn-secondary">Ver</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      </div>
+      {% else %}
+      <p class="muted">Sin correos importados todavía.</p>
+      {% endif %}
+    </section>
+  </div>
+
+  <div class="detail-side">
       <section class="card" id="documentos-panel"
                data-upload-url="{{ url_for('expedientes.upload_documento_api', expediente_id=expediente.id) }}">
         <h2>Documentos</h2>
@@ -367,91 +453,6 @@
         </div>
       </section>
 
-    <section class="card correos-section">
-      <div class="correos-header">
-        <h2>Correo</h2>
-        <div class="correos-header-actions">
-          <form method="post" action="{{ url_for('expedientes.sincronizar_correos_expediente', expediente_id=expediente.id) }}">
-            <button type="submit" class="btn btn-secondary btn-sm">Sincronizar correos</button>
-          </form>
-          <a href="{{ url_for('configuracion.ver_configuracion') }}" class="btn btn-secondary btn-sm">Configuración IMAP</a>
-        </div>
-      </div>
-
-      <p class="muted correos-help">
-        Etiqueta obligatoria en el asunto: <code>[EXP-{{ expediente.numero_expediente }}]</code>.
-        Los correos enviados desde Estudio se guardan automáticamente en el expediente.
-        Usa «Sincronizar correos» para importar respuestas o mensajes enviados fuera de Estudio.
-        {% if not imap_configurado %}
-        <a href="{{ url_for('configuracion.ver_configuracion') }}">Configura IMAP</a> antes de enviar o sincronizar.
-        {% endif %}
-      </p>
-
-      <form method="post" action="{{ url_for('expedientes.enviar_correo_expediente', expediente_id=expediente.id) }}" class="correo-form">
-        <div class="field">
-          <label for="destinatario">Para</label>
-          <input type="email" id="destinatario" name="destinatario" required placeholder="cliente@ejemplo.com">
-        </div>
-        <div class="field">
-          <label for="asunto">Asunto</label>
-          <input type="text" id="asunto" name="asunto" value="{{ asunto_correo_default }}">
-        </div>
-        <div class="field field-full">
-          <label for="cuerpo">Mensaje</label>
-          <textarea id="cuerpo" name="cuerpo" rows="5" placeholder="Escribe el mensaje..."></textarea>
-        </div>
-        <div class="field field-full">
-          <label>Documentos como enlaces</label>
-          <div id="correo-document-drop" class="correo-link-drop" tabindex="0">
-            <strong>Arrastra aquí documentos de la lista</strong>
-            <span>Se enviarán como enlaces en el cuerpo del correo, no como adjuntos.</span>
-          </div>
-          <ul id="correo-document-links" class="correo-link-list" hidden></ul>
-        </div>
-        <button type="submit" class="btn btn-primary">Enviar</button>
-      </form>
-
-      {% if correos %}
-      <h3 class="list-scroll-title">Mensajes recibidos y enviados</h3>
-      <div class="list-scroll">
-      <table class="table table-compact table-in-scroll correos-table">
-        <thead>
-          <tr>
-            <th>Fecha</th>
-            <th>Tipo</th>
-            <th>Asunto</th>
-            <th>De / Para</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for correo in correos %}
-          <tr>
-            <td>{{ correo.fecha.strftime('%d/%m/%Y %H:%M') if correo.fecha else '—' }}</td>
-            <td><span class="badge">{{ correo.direccion }}</span></td>
-            <td>{{ correo.asunto or '—' }}</td>
-            <td>
-              {% if correo.direccion == 'enviado' %}
-              {{ correo.destinatario or '—' }}
-              {% else %}
-              {{ correo.remitente or '—' }}
-              {% endif %}
-            </td>
-            <td>
-              <a href="{{ url_for('expedientes.ver_correo_expediente', expediente_id=expediente.id, correo_id=correo.id) }}"
-                 class="btn btn-sm btn-secondary">Ver</a>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-      </div>
-      {% else %}
-      <p class="muted">Sin correos importados todavía.</p>
-      {% endif %}
-    </section>
-  </div>
-
   <aside class="card detail-preview" id="document-preview"
          data-viewer-origin="{{ visor_url }}"
          data-upload-url="{{ url_for('expedientes.upload_documento_api', expediente_id=expediente.id) }}">
@@ -464,6 +465,7 @@
     <iframe id="preview-iframe" class="preview-frame" title="Vista previa del documento"
             src="{{ visor_url }}/embed?factbox=1&language=es-ES"></iframe>
   </aside>
+  </div>
   </div>
   </div>
 </div>
