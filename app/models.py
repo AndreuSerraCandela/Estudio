@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from enum import Enum
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, String, Text, text
+from sqlalchemy import Boolean, Column, Date, DateTime, ForeignKey, Integer, String, Table, Text, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -47,6 +47,11 @@ class Expediente(Base):
 
     documentos: Mapped[list["Documento"]] = relationship(
         "Documento", back_populates="expediente", cascade="all, delete-orphan"
+    )
+    artes: Mapped[list["ArteFinal"]] = relationship(
+        back_populates="expediente",
+        cascade="all, delete-orphan",
+        order_by="ArteFinal.created_at.desc()",
     )
     correos: Mapped[list["Correo"]] = relationship(
         "Correo", back_populates="expediente", cascade="all, delete-orphan"
@@ -98,6 +103,37 @@ class Documento(Base):
     validado_por_nombre: Mapped[str | None] = mapped_column(String(255))
 
     expediente: Mapped["Expediente"] = relationship("Expediente", back_populates="documentos")
+
+
+arte_final_documentos = Table(
+    "arte_final_documentos",
+    Base.metadata,
+    Column("arte_final_id", Integer, ForeignKey("arte_finales.id", ondelete="CASCADE"), primary_key=True),
+    Column("documento_id", Integer, ForeignKey("documentos.id"), primary_key=True),
+)
+
+
+class ArteFinal(Base):
+    """Entrega de arte final: varios documentos, una descripción y una aprobación."""
+
+    __tablename__ = "arte_finales"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    expediente_id: Mapped[int] = mapped_column(ForeignKey("expedientes.id"), nullable=False, index=True)
+    descripcion: Mapped[str] = mapped_column(String(500), nullable=False)
+    aprobacion: Mapped[str] = mapped_column(String(30), default="no_requiere", server_default=text("'no_requiere'"))
+    medios_bc_user: Mapped[str | None] = mapped_column(String(150))
+    medios_empleado: Mapped[str | None] = mapped_column(String(50))
+    medios_nombre: Mapped[str | None] = mapped_column(String(255))
+    medios_email: Mapped[str | None] = mapped_column(String(255))
+    validado: Mapped[bool] = mapped_column(Boolean, default=False, server_default=text("0"))
+    validado_en: Mapped[datetime | None] = mapped_column(DateTime)
+    validado_por: Mapped[int | None] = mapped_column(Integer)
+    validado_por_nombre: Mapped[str | None] = mapped_column(String(255))
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=text("SYSUTCDATETIME()"))
+
+    expediente: Mapped["Expediente"] = relationship(back_populates="artes")
+    documentos: Mapped[list["Documento"]] = relationship(secondary=arte_final_documentos)
 
 
 class Peticion(Base):

@@ -546,15 +546,33 @@ textarea { resize: vertical; }
 }
 .arte-actual .badge { flex: none; text-transform: none; }
 .arte-actual .muted { flex: none; font-size: 0.85rem; }
-.arte-publicar {
+.arte-paquete {
   display: grid;
-  grid-template-columns: minmax(0, 1.5fr) minmax(220px, 0.8fr) auto;
-  gap: 0.75rem 1rem;
-  align-items: end;
+  gap: 0.45rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border);
 }
-.arte-publicar-simple { grid-template-columns: minmax(0, 1fr) auto; }
-.arte-publicar .btn { white-space: nowrap; }
-.arte-nota { grid-column: 1 / -1; margin: 0; font-size: 0.85rem; }
+.arte-paquete:last-child { border-bottom: 0; padding-bottom: 0; }
+.arte-archivos { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.25rem; }
+.arte-archivos li { display: flex; gap: 0.5rem; align-items: center; }
+.arte-archivos form { margin: 0; }
+.arte-nuevo, .arte-ampliar { display: grid; gap: 0.75rem; margin-top: 0.85rem; }
+.arte-nuevo h3 { margin: 0; font-size: 1rem; }
+.arte-nuevo-fila { display: flex; gap: 0.75rem; align-items: end; flex-wrap: wrap; }
+.arte-nuevo-fila .field { flex: 1 1 220px; margin: 0; }
+.arte-docs {
+  display: grid;
+  gap: 0.3rem;
+  max-height: 180px;
+  overflow: auto;
+  margin: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.55rem 0.75rem;
+}
+.arte-docs legend { padding: 0 0.25rem; font-size: 0.85rem; }
+.arte-docs label { display: flex; gap: 0.5rem; align-items: center; font-weight: 500; }
+.arte-nota { margin: 0; font-size: 0.85rem; }
 .badge-ok { background: #dcfce7; color: #166534; }
 
 .upload-form {
@@ -1105,8 +1123,7 @@ code { font-size: 0.85rem; background: #f8f0f2; color: var(--primary); padding: 
   .form-grid,
   .form-section,
   .upload-form,
-  .arte-publicar,
-  .arte-publicar-simple,
+  .arte-nuevo-fila,
   .correo-form,
   .correo-import-form,
   .imap-form {

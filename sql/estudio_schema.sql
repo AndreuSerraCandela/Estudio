@@ -233,6 +233,77 @@ IF COL_LENGTH('dbo.documentos', 'medios_nombre') IS NULL
 IF COL_LENGTH('dbo.documentos', 'medios_email') IS NULL
     ALTER TABLE dbo.documentos ADD medios_email NVARCHAR(255) NULL;
 
+IF OBJECT_ID('dbo.arte_finales', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.arte_finales (
+        id INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+        expediente_id INT NOT NULL,
+        descripcion NVARCHAR(500) NOT NULL,
+        aprobacion NVARCHAR(30) NOT NULL CONSTRAINT DF_arte_finales_aprobacion DEFAULT 'no_requiere',
+        medios_bc_user NVARCHAR(150) NULL,
+        medios_empleado NVARCHAR(50) NULL,
+        medios_nombre NVARCHAR(255) NULL,
+        medios_email NVARCHAR(255) NULL,
+        validado BIT NOT NULL CONSTRAINT DF_arte_finales_validado DEFAULT 0,
+        validado_en DATETIME2 NULL,
+        validado_por INT NULL,
+        validado_por_nombre NVARCHAR(255) NULL,
+        created_at DATETIME2 NOT NULL CONSTRAINT DF_arte_finales_created DEFAULT SYSUTCDATETIME(),
+        CONSTRAINT FK_arte_finales_expediente FOREIGN KEY (expediente_id)
+            REFERENCES dbo.expedientes(id) ON DELETE CASCADE
+    );
+END;
+
+IF OBJECT_ID('dbo.arte_final_documentos', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.arte_final_documentos (
+        arte_final_id INT NOT NULL,
+        documento_id INT NOT NULL,
+        CONSTRAINT PK_arte_final_documentos PRIMARY KEY (arte_final_id, documento_id),
+        CONSTRAINT FK_arte_final_documentos_arte FOREIGN KEY (arte_final_id)
+            REFERENCES dbo.arte_finales(id) ON DELETE CASCADE,
+        CONSTRAINT FK_arte_final_documentos_documento FOREIGN KEY (documento_id)
+            REFERENCES dbo.documentos(id)
+    );
+END;
+
+IF OBJECT_ID('dbo.arte_finales', 'U') IS NOT NULL
+   AND OBJECT_ID('dbo.arte_final_documentos', 'U') IS NOT NULL
+   AND COL_LENGTH('dbo.documentos', 'aprobacion') IS NOT NULL
+EXEC(N'
+DECLARE @id INT, @expediente INT, @descripcion NVARCHAR(500), @aprobacion NVARCHAR(30),
+        @bc NVARCHAR(150), @empleado NVARCHAR(50), @nombre NVARCHAR(255), @email NVARCHAR(255),
+        @validado BIT, @validado_en DATETIME2, @validado_por INT, @validado_nombre NVARCHAR(255),
+        @origen NVARCHAR(50), @nuevo INT;
+DECLARE antiguos CURSOR LOCAL FAST_FORWARD FOR
+    SELECT id, expediente_id, LEFT(COALESCE(NULLIF(descripcion, N''''), nombre), 500),
+           ISNULL(aprobacion, N''no_requiere''), medios_bc_user, medios_empleado, medios_nombre, medios_email,
+           ISNULL(validado, 0), validado_en, validado_por, validado_por_nombre, tipo_origen
+    FROM dbo.documentos
+    WHERE tipo = N''arte_final''
+      AND NOT EXISTS (SELECT 1 FROM dbo.arte_final_documentos j WHERE j.documento_id = documentos.id);
+OPEN antiguos;
+FETCH NEXT FROM antiguos INTO @id, @expediente, @descripcion, @aprobacion, @bc, @empleado, @nombre, @email, @validado, @validado_en, @validado_por, @validado_nombre, @origen;
+WHILE @@FETCH_STATUS = 0
+BEGIN
+    INSERT INTO dbo.arte_finales (
+        expediente_id, descripcion, aprobacion, medios_bc_user, medios_empleado, medios_nombre, medios_email,
+        validado, validado_en, validado_por, validado_por_nombre
+    ) VALUES (
+        @expediente, @descripcion, @aprobacion, @bc, @empleado, @nombre, @email,
+        @validado, @validado_en, @validado_por, @validado_nombre
+    );
+    SET @nuevo = SCOPE_IDENTITY();
+    INSERT INTO dbo.arte_final_documentos (arte_final_id, documento_id) VALUES (@nuevo, @id);
+    UPDATE dbo.documentos
+       SET tipo = COALESCE(NULLIF(@origen, N''''), N''otro''), tipo_origen = NULL
+     WHERE id = @id;
+    FETCH NEXT FROM antiguos INTO @id, @expediente, @descripcion, @aprobacion, @bc, @empleado, @nombre, @email, @validado, @validado_en, @validado_por, @validado_nombre, @origen;
+END
+CLOSE antiguos;
+DEALLOCATE antiguos;
+');
+
 IF OBJECT_ID('dbo.comercial_vinculo', 'U') IS NULL
 BEGIN
     CREATE TABLE dbo.comercial_vinculo (

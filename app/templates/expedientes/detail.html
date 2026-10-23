@@ -17,25 +17,57 @@
 
 <section class="card" id="arte-final">
   <h2>Arte final</h2>
-  {% set artes = expediente.documentos | selectattr('tipo', 'equalto', 'arte_final') | list %}
-  {% set documentos_disponibles = expediente.documentos | rejectattr('tipo', 'equalto', 'arte_final') | list %}
-  {% if artes %}
+  {% if expediente.artes %}
   <ul class="arte-actual-lista">
-    {% for doc in artes %}
-    <li class="arte-actual">
-      {% if doc.aprobacion == 'pendiente' %}
-      <span class="badge">Pendiente</span>
-      {% elif doc.aprobacion == 'aprobado' %}
-      <span class="badge badge-ok">Aprobado</span>
-      {% else %}
-      <span class="badge badge-ok">Publicado</span>
-      {% endif %}
-      <a href="{{ doc.url }}" target="_blank" rel="noopener">{{ doc.nombre }}</a>
-      {% if doc.descripcion %}<span class="muted">{{ doc.descripcion }}</span>{% endif %}
-      {% if doc.aprobacion == 'pendiente' %}
-      <span class="muted">{{ doc.medios_nombre or 'Medios' }}</span>
-      {% elif doc.aprobacion == 'aprobado' and doc.validado_por_nombre %}
-      <span class="muted">{{ doc.validado_por_nombre }}</span>
+    {% for arte in expediente.artes %}
+    <li class="arte-paquete">
+      <div class="arte-actual">
+        {% if arte.aprobacion == 'pendiente' %}
+        <span class="badge">Pendiente</span>
+        {% elif arte.aprobacion == 'aprobado' %}
+        <span class="badge badge-ok">Aprobado</span>
+        {% else %}
+        <span class="badge badge-ok">Publicado</span>
+        {% endif %}
+        <strong>{{ arte.descripcion }}</strong>
+        {% if arte.aprobacion == 'pendiente' %}
+        <span class="muted">{{ arte.medios_nombre or 'Medios' }}</span>
+        {% elif arte.aprobacion == 'aprobado' and arte.validado_por_nombre %}
+        <span class="muted">{{ arte.validado_por_nombre }}</span>
+        {% endif %}
+      </div>
+      <ul class="arte-archivos">
+        {% for doc in arte.documentos %}
+        <li>
+          <a href="{{ doc.url }}" target="_blank" rel="noopener">{{ doc.nombre }}</a>
+          {% if arte.aprobacion == 'pendiente' and arte.documentos|length > 1 %}
+          <form method="post" action="{{ url_for('expedientes.quitar_documento_arte', expediente_id=expediente.id, arte_id=arte.id, documento_id=doc.id) }}">
+            <button type="submit" class="btn btn-secondary btn-sm">Quitar</button>
+          </form>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% if arte.aprobacion == 'pendiente' %}
+      <form method="post" action="{{ url_for('expedientes.ampliar_arte_final', expediente_id=expediente.id, arte_id=arte.id) }}" enctype="multipart/form-data" class="arte-ampliar">
+        {% if expediente.documentos %}
+        {% set ids_arte = arte.documentos | map(attribute='id') | list %}
+        <div class="arte-docs">
+          {% for doc in expediente.documentos %}
+          {% if doc.id not in ids_arte %}
+          <label><input type="checkbox" name="documento_ids" value="{{ doc.id }}"> {{ doc.nombre }}</label>
+          {% endif %}
+          {% endfor %}
+        </div>
+        {% endif %}
+        <div class="arte-nuevo-fila">
+          <div class="field">
+            <label for="arte-mas-{{ arte.id }}">Añadir archivos</label>
+            <input id="arte-mas-{{ arte.id }}" type="file" name="archivos" multiple>
+          </div>
+          <button type="submit" class="btn btn-secondary">Añadir</button>
+        </div>
+      </form>
       {% endif %}
     </li>
     {% endfor %}
@@ -43,42 +75,49 @@
   {% else %}
   <p class="muted arte-vacio">Todavía no hay arte final en este expediente.</p>
   {% endif %}
-  {% if documentos_disponibles %}
-  <form method="post" action="{{ url_for('expedientes.publicar_arte_final', expediente_id=expediente.id) }}" class="arte-publicar{% if not expediente.bc_proyecto_id %} arte-publicar-simple{% endif %}">
+
+  <form method="post" action="{{ url_for('expedientes.publicar_arte_final', expediente_id=expediente.id) }}" enctype="multipart/form-data" class="arte-nuevo">
+    <h3>Nuevo arte final</h3>
     <div class="field">
-      <label for="arte-documento">Documento</label>
-      <select id="arte-documento" name="documento_id" required>
-        <option value="">Elige el documento</option>
-        {% for doc in documentos_disponibles %}
-        <option value="{{ doc.id }}">{{ doc.nombre }}{% if doc.descripcion %} — {{ doc.descripcion }}{% endif %}</option>
-        {% endfor %}
-      </select>
+      <label for="arte-descripcion">Descripción</label>
+      <input id="arte-descripcion" name="descripcion" maxlength="500" required placeholder="Motivo, colores, versión…">
     </div>
-    {% if expediente.bc_proyecto_id %}
-    <div class="field">
-      <label for="medios_empleado">Persona de medios</label>
-      <select id="medios_empleado" name="medios_empleado" {% if not medios_persona %}required{% endif %}>
-        <option value="">Elige a quién avisar</option>
-        {% for persona in personas_medios %}
-        <option value="{{ persona.empleado }}" {% if medios_persona and persona.empleado == medios_persona.empleado %}selected{% endif %}>{{ persona.nombre }}</option>
-        {% endfor %}
-      </select>
-    </div>
+    {% if expediente.documentos %}
+    <fieldset class="arte-docs">
+      <legend>Documentos del expediente</legend>
+      {% for doc in expediente.documentos %}
+      <label><input type="checkbox" name="documento_ids" value="{{ doc.id }}"> {{ doc.nombre }}</label>
+      {% endfor %}
+    </fieldset>
     {% endif %}
-    <button type="submit" class="btn btn-primary">{% if artes %}Sustituir{% else %}Publicar{% endif %}</button>
+    <div class="arte-nuevo-fila">
+      <div class="field">
+        <label for="arte-archivos">Archivos nuevos</label>
+        <input id="arte-archivos" type="file" name="archivos" multiple>
+      </div>
+      {% if expediente.bc_proyecto_id %}
+      <div class="field">
+        <label for="medios_empleado">Persona de medios</label>
+        <select id="medios_empleado" name="medios_empleado" {% if not medios_persona %}required{% endif %}>
+          <option value="">Elige a quién avisar</option>
+          {% for persona in personas_medios %}
+          <option value="{{ persona.empleado }}" {% if medios_persona and persona.empleado == medios_persona.empleado %}selected{% endif %}>{{ persona.nombre }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% endif %}
+      <button type="submit" class="btn btn-primary">Crear arte final</button>
+    </div>
     {% if medios_error %}
     <p class="arte-nota">{{ medios_error }}</p>
     {% elif expediente.bc_proyecto_id and medios_persona %}
-    <p class="arte-nota muted">{{ medios_persona.nombre }} lo aprueba antes de que lo vea el comercial.</p>
+    <p class="arte-nota muted">{{ medios_persona.nombre }} lo aprueba antes de que lo vea el comercial. Los archivos nuevos también se guardan en Documentos.</p>
     {% elif expediente.bc_proyecto_id %}
     <p class="arte-nota">Elige a la persona de medios. Quedará guardada en el expediente.</p>
     {% else %}
-    <p class="arte-nota muted">Sin proyecto: se publica y se avisa al comercial.</p>
+    <p class="arte-nota muted">Sin proyecto: se publica y se avisa al comercial. Los archivos nuevos también se guardan en Documentos.</p>
     {% endif %}
   </form>
-  {% else %}
-  <p class="muted">No hay otro documento. Cárgalo antes desde el visor.</p>
-  {% endif %}
 </section>
 
 {% if peticiones %}

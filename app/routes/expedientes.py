@@ -15,7 +15,7 @@ from werkzeug.exceptions import HTTPException
 
 from app.document_utils import documento_to_dict, guess_tipo, preview_kind
 from app.expediente_utils import ot_es_automatica, siguiente_numero_expediente, siguiente_numero_ot
-from app.models import Correo, Documento, Expediente, Peticion, TipoDocumento
+from app.models import ArteFinal, Correo, Documento, Expediente, Peticion, TipoDocumento, arte_final_documentos
 from app.services.bc import BCError, bc_service
 from app.config import settings
 from app.services.bc_proyectos import BcProyectoError, buscar_proyectos, ficha_proyecto
@@ -413,9 +413,7 @@ def _resolver_medios(expediente: Expediente, empleado: str) -> PersonaMedios | N
     return None
 
 
-def _campos_arte(expediente: Expediente, tipo: str, empleado: str) -> tuple[dict | None, str | None]:
-    if tipo != TipoDocumento.ARTE_FINAL.value:
-        return None, None
+def _campos_arte(expediente: Expediente, empleado: str) -> tuple[dict | None, str | None]:
     if not (expediente.bc_proyecto_id or "").strip():
         return {"aprobacion": "no_requiere", "validado": False}, None
     persona = _resolver_medios(expediente, empleado)
@@ -435,31 +433,38 @@ def _campos_arte(expediente: Expediente, tipo: str, empleado: str) -> tuple[dict
     }, None
 
 
-def _avisar_arte(db, expediente: Expediente, documento: Documento) -> None:
+def _lista_archivos(arte: ArteFinal) -> str:
+    lineas = [f"- {doc.nombre}\n  {doc.url}" for doc in arte.documentos]
+    return "\n".join(lineas) or "(sin archivos)"
+
+
+def _avisar_arte(db, expediente: Expediente, arte: ArteFinal) -> None:
     config = get_usuario_config(db, current_user.id)
     smtp = smtp_settings_from_config(config)
     if smtp is None:
         flash("El arte final está publicado, pero tu usuario no tiene correo y no se ha enviado el aviso.", "warning")
         return
+    archivos = _lista_archivos(arte)
     try:
-        if documento.aprobacion == "pendiente":
-            if not (documento.medios_email or "").strip():
+        if arte.aprobacion == "pendiente":
+            if not (arte.medios_email or "").strip():
                 flash("El arte final está publicado, pero la persona de medios no tiene email.", "warning")
                 return
-            enlace = f"{settings.webestudio_public_url}/arte-final?doc={documento.id}#arte-{documento.id}"
+            enlace = f"{settings.webestudio_public_url}/arte-final?doc={arte.id}#arte-{arte.id}"
             enviar_correo_smtp(
                 smtp,
-                documento.medios_email or "",
+                arte.medios_email or "",
                 f"Arte final pendiente — {expediente.numero_expediente}",
                 (
-                    f"Hola {documento.medios_nombre or ''},\n\n"
+                    f"Hola {arte.medios_nombre or ''},\n\n"
                     f"El estudio ha publicado un arte final del expediente {expediente.numero_expediente} "
                     f"({expediente.cliente}), proyecto {expediente.bc_proyecto_id or expediente.proyecto or ''}.\n\n"
+                    f"{arte.descripcion}\n\n"
                     f"Ábrelo y apruébalo aquí:\n{enlace}\n\n"
-                    f"Archivo: {documento.nombre}\n"
+                    f"Archivos:\n{archivos}\n"
                 ),
             )
-            flash(f"Aviso enviado a {documento.medios_nombre}.", "success")
+            flash(f"Aviso enviado a {arte.medios_nombre}.", "success")
             return
         destino = email_comercial(expediente.bc_comercial_id, expediente.comercial)
         if not destino:
@@ -471,14 +476,63 @@ def _avisar_arte(db, expediente: Expediente, documento: Documento) -> None:
             f"Arte final disponible — {expediente.numero_expediente}",
             (
                 f"El arte final del expediente {expediente.numero_expediente} ({expediente.cliente}) ya está disponible.\n\n"
-                f"{documento.url}\n\n"
-                f"Archivo: {documento.nombre}\n"
+                f"{arte.descripcion}\n\n"
+                f"Archivos:\n{archivos}\n"
             ),
         )
         flash("Aviso enviado al comercial.", "success")
     except SmtpError as exc:
-        logger.warning("No se pudo avisar del arte final %s: %s", documento.id, exc)
+        logger.warning("No se pudo avisar del arte final %s: %s", arte.id, exc)
         flash(f"El arte final está publicado, pero el correo no se ha enviado: {exc}", "warning")
+
+
+def _volver_arte(expediente_id: int):
+    return redirect(url_for("expedientes.view_expediente", expediente_id=expediente_id) + "#arte-final")
+
+
+def _documentos_elegidos(db, expediente_id: int, ya: set[int] | None = None) -> list[Documento]:
+    ids: list[int] = []
+    for raw in request.form.getlist("documento_ids"):
+        try:
+            ids.append(int(raw))
+        except (TypeError, ValueError):
+            continue
+    if not ids:
+        return []
+    documentos = (
+        db.query(Documento)
+        .filter(Documento.expediente_id == expediente_id, Documento.id.in_(ids))
+        .all()
+    )
+    if ya:
+        documentos = [doc for doc in documentos if doc.id not in ya]
+    return documentos
+
+
+def _subir_archivos_arte(db, expediente_id: int) -> list[Documento]:
+    nuevos: list[Documento] = []
+    for archivo in request.files.getlist("archivos"):
+        if not archivo or not archivo.filename:
+            continue
+        tipo = guess_tipo(archivo.filename, archivo.content_type)
+        nuevos.append(
+            _save_documento(
+                db,
+                expediente_id,
+                archivo.read(),
+                archivo.filename,
+                archivo.content_type,
+                tipo=tipo,
+            )
+        )
+    return nuevos
+
+
+def _arte_del_expediente(db, expediente_id: int, arte_id: int) -> ArteFinal | None:
+    arte = db.get(ArteFinal, arte_id)
+    if arte is None or arte.expediente_id != expediente_id:
+        return None
+    return arte
 
 
 @bp.post("/<int:expediente_id>/arte-final")
@@ -488,62 +542,85 @@ def publicar_arte_final(expediente_id: int):
     if not expediente:
         abort(404, description="Expediente no encontrado")
 
-    try:
-        documento_id = int(request.form.get("documento_id", ""))
-    except (TypeError, ValueError):
-        documento_id = 0
-    documento = (
-        db.query(Documento)
-        .filter(
-            Documento.id == documento_id,
-            Documento.expediente_id == expediente_id,
-            Documento.tipo != TipoDocumento.ARTE_FINAL.value,
-        )
-        .first()
-    )
-    if documento is None:
-        flash("Elige un documento del expediente para publicarlo como arte final.", "warning")
-        return redirect(url_for("expedientes.view_expediente", expediente_id=expediente_id) + "#arte-final")
+    descripcion = request.form.get("descripcion", "").strip()
+    if not descripcion:
+        flash("Escribe una descripción del arte final.", "warning")
+        return _volver_arte(expediente_id)
 
-    campos, error = _campos_arte(
-        expediente,
-        TipoDocumento.ARTE_FINAL.value,
-        request.form.get("medios_empleado", ""),
-    )
+    documentos = _documentos_elegidos(db, expediente_id)
+    archivos = [archivo for archivo in request.files.getlist("archivos") if archivo and archivo.filename]
+    if not documentos and not archivos:
+        flash("Elige documentos del expediente o sube archivos nuevos.", "warning")
+        return _volver_arte(expediente_id)
+
+    campos, error = _campos_arte(expediente, request.form.get("medios_empleado", ""))
     if error:
         flash(error, "warning")
-        return redirect(url_for("expedientes.view_expediente", expediente_id=expediente_id) + "#arte-final")
+        return _volver_arte(expediente_id)
 
-    anteriores = (
-        db.query(Documento)
-        .filter(
-            Documento.expediente_id == expediente_id,
-            Documento.tipo == TipoDocumento.ARTE_FINAL.value,
-            Documento.id != documento.id,
-        )
-        .all()
+    documentos.extend(_subir_archivos_arte(db, expediente_id))
+    arte = ArteFinal(
+        expediente_id=expediente_id,
+        descripcion=descripcion[:500],
+        aprobacion=campos.get("aprobacion", "no_requiere"),
+        validado=False,
+        medios_bc_user=campos.get("medios_bc_user"),
+        medios_empleado=campos.get("medios_empleado"),
+        medios_nombre=campos.get("medios_nombre"),
+        medios_email=campos.get("medios_email"),
     )
-    for anterior in anteriores:
-        anterior.tipo = anterior.tipo_origen or guess_tipo(anterior.nombre, anterior.mime_type)
-        anterior.tipo_origen = None
-
-    documento.tipo_origen = documento.tipo
-    documento.tipo = TipoDocumento.ARTE_FINAL.value
-    documento.aprobacion = campos.get("aprobacion", "no_requiere")
-    documento.medios_bc_user = campos.get("medios_bc_user")
-    documento.medios_empleado = campos.get("medios_empleado")
-    documento.medios_nombre = campos.get("medios_nombre")
-    documento.medios_email = campos.get("medios_email")
-    documento.validado = bool(campos.get("validado", False))
-    documento.validado_en = None
-    documento.validado_por = None
-    documento.validado_por_nombre = None
+    arte.documentos = documentos
+    db.add(arte)
     db.commit()
-    db.refresh(documento)
+    db.refresh(arte)
 
-    _avisar_arte(db, expediente, documento)
-    flash(f"«{documento.nombre}» es ahora el arte final del expediente.", "success")
-    return redirect(url_for("expedientes.view_expediente", expediente_id=expediente_id) + "#arte-final")
+    _avisar_arte(db, expediente, arte)
+    flash(f"Arte final «{arte.descripcion}» publicado.", "success")
+    return _volver_arte(expediente_id)
+
+
+@bp.post("/<int:expediente_id>/arte-final/<int:arte_id>/archivos")
+def ampliar_arte_final(expediente_id: int, arte_id: int):
+    db = _db()
+    arte = _arte_del_expediente(db, expediente_id, arte_id)
+    if arte is None:
+        abort(404, description="Arte final no encontrado")
+    if arte.aprobacion != "pendiente":
+        flash("Ese arte ya está publicado. Si hay que cambiarlo, crea uno nuevo.", "warning")
+        return _volver_arte(expediente_id)
+
+    ya = {doc.id for doc in arte.documentos}
+    documentos = _documentos_elegidos(db, expediente_id, ya)
+    documentos.extend(_subir_archivos_arte(db, expediente_id))
+    if not documentos:
+        flash("Elige documentos o sube archivos para añadirlos.", "warning")
+        return _volver_arte(expediente_id)
+    arte.documentos.extend(documentos)
+    db.commit()
+    flash("Archivos añadidos al arte final pendiente.", "success")
+    return _volver_arte(expediente_id)
+
+
+@bp.post("/<int:expediente_id>/arte-final/<int:arte_id>/documentos/<int:documento_id>/quitar")
+def quitar_documento_arte(expediente_id: int, arte_id: int, documento_id: int):
+    db = _db()
+    arte = _arte_del_expediente(db, expediente_id, arte_id)
+    if arte is None:
+        abort(404, description="Arte final no encontrado")
+    if arte.aprobacion != "pendiente":
+        flash("Ese arte ya está publicado y no se pueden quitar archivos.", "warning")
+        return _volver_arte(expediente_id)
+    documento = next((doc for doc in arte.documentos if doc.id == documento_id), None)
+    if documento is None:
+        flash("Ese archivo no está en este arte final.", "warning")
+        return _volver_arte(expediente_id)
+    if len(arte.documentos) <= 1:
+        flash("El arte final tiene que conservar al menos un archivo.", "warning")
+        return _volver_arte(expediente_id)
+    arte.documentos.remove(documento)
+    db.commit()
+    flash(f"«{documento.nombre}» queda en el expediente, fuera de este arte final.", "success")
+    return _volver_arte(expediente_id)
 
 
 def _save_documento(
@@ -659,6 +736,8 @@ def delete_documento(expediente_id: int, documento_id: int):
         strapi_service.delete_file(documento.strapi_document_id, documento.strapi_id)
     except StrapiError:
         pass
+
+    db.execute(arte_final_documentos.delete().where(arte_final_documentos.c.documento_id == documento.id))
 
     db.delete(documento)
     db.commit()
