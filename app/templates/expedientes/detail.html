@@ -11,9 +11,6 @@
     <h1>{{ expediente.numero_expediente }}</h1>
     <p class="subtitle">{{ expediente.cliente }}</p>
   </div>
-  <div class="header-actions">
-    <a href="/expedientes/{{ expediente.id }}/editar" class="btn btn-secondary">Editar</a>
-  </div>
 </div>
 
 <div class="expediente-shell">
@@ -165,45 +162,71 @@
 
       <section class="card expediente-pane" id="detalle">
         <h2>Información</h2>
-        <dl class="detail-list">
-          <dt>Cliente</dt>
-          <dd>
-            {{ expediente.cliente }}
-            {% if expediente.bc_cliente_id %}
-            <br><small class="muted">BC: {{ expediente.bc_cliente_id }}</small>
+        <form method="post" action="{{ url_for('expedientes.update_expediente', expediente_id=expediente.id) }}" class="detalle-form">
+          <div class="field">
+            <label for="numero_expediente">Nº expediente</label>
+            <input type="text" id="numero_expediente" name="numero_expediente" required value="{{ expediente.numero_expediente }}">
+          </div>
+          <div class="field autocomplete-wrap">
+            <label for="cliente">Cliente</label>
+            <input type="text" id="cliente" name="cliente" required autocomplete="off" value="{{ expediente.cliente or '' }}">
+            <input type="hidden" id="bc_cliente_id" name="bc_cliente_id" value="{{ expediente.bc_cliente_id or '' }}">
+            <ul id="cliente-suggestions" class="autocomplete-list" hidden></ul>
+            <small class="muted" id="cliente-bc-hint">{% if expediente.bc_cliente_id %}Vinculado a BC: {{ expediente.bc_cliente_id }}{% endif %}</small>
+          </div>
+          <div class="field">
+            <label for="trabajo">Trabajo</label>
+            <textarea id="trabajo" name="trabajo" rows="3">{{ expediente.trabajo or '' }}</textarea>
+          </div>
+          <div class="field autocomplete-wrap">
+            <label for="comercial">Comercial</label>
+            <input type="text" id="comercial" name="comercial" autocomplete="off" value="{{ expediente.comercial or '' }}">
+            <input type="hidden" id="bc_comercial_id" name="bc_comercial_id" value="{{ expediente.bc_comercial_id or '' }}">
+            <ul id="comercial-suggestions" class="autocomplete-list" hidden></ul>
+            <small class="muted" id="comercial-bc-hint">{% if expediente.bc_comercial_id %}Vinculado a BC: {{ expediente.bc_comercial_id }}{% endif %}</small>
+          </div>
+          <div class="field">
+            <label for="ot">OT</label>
+            {% if ot_automatica %}
+            <input type="text" id="ot" name="ot" readonly value="{{ expediente.ot or siguiente_ot or '' }}">
+            {% else %}
+            <input type="text" id="ot" name="ot" value="{{ expediente.ot or '' }}">
             {% endif %}
-          </dd>
-          <dt>Trabajo</dt>
-          <dd>{{ expediente.trabajo or '—' }}</dd>
-          <dt>Comercial</dt>
-          <dd>
-            {{ expediente.comercial or '—' }}
-            {% if expediente.bc_comercial_id %}
-            <br><small class="muted">BC: {{ expediente.bc_comercial_id }}</small>
-            {% endif %}
-          </dd>
-          <dt>OT</dt>
-          <dd>{{ expediente.ot or '—' }}</dd>
-          <dt>Proyecto</dt>
-          <dd>
-            {{ expediente.proyecto or '—' }}
-            {% if expediente.bc_proyecto_id %}
-            <br><small class="muted">BC: {{ expediente.bc_proyecto_id }}</small>
-            {% endif %}
-          </dd>
-          <dt>Fecha inicio</dt>
-          <dd>{{ expediente.fecha_inicio.strftime('%d/%m/%Y') if expediente.fecha_inicio else '—' }}</dd>
-          <dt>Fecha finalización</dt>
-          <dd>{{ expediente.fecha_finalizacion.strftime('%d/%m/%Y') if expediente.fecha_finalizacion else '—' }}</dd>
-          <dt>Producto</dt>
-          <dd>{{ expediente.producto or '—' }}</dd>
-          <dt>Acabado</dt>
-          <dd>{{ expediente.acabado or '—' }}</dd>
-          <dt>Diseñador/a</dt>
-          <dd>{{ expediente.disenador or '—' }}</dd>
-          <dt>Observaciones</dt>
-          <dd class="pre-wrap">{{ expediente.observaciones or '—' }}</dd>
-        </dl>
+          </div>
+          <div class="field autocomplete-wrap">
+            <label for="proyecto">Proyecto</label>
+            <input type="text" id="proyecto" name="proyecto" autocomplete="off" value="{{ expediente.proyecto or '' }}">
+            <input type="hidden" id="bc_proyecto_id" name="bc_proyecto_id" value="{{ expediente.bc_proyecto_id or '' }}">
+            <input type="hidden" id="bc_empresa" name="bc_empresa" value="{{ expediente.bc_empresa or '' }}">
+            <ul id="proyecto-suggestions" class="autocomplete-list" hidden></ul>
+            <small class="muted" id="proyecto-bc-hint">{% if expediente.bc_proyecto_id %}Vinculado a BC: {{ expediente.bc_proyecto_id }}{% endif %}</small>
+          </div>
+          <div class="field">
+            <label for="fecha_inicio">Fecha inicio</label>
+            <input type="date" id="fecha_inicio" name="fecha_inicio" value="{{ expediente.fecha_inicio.isoformat() if expediente.fecha_inicio else '' }}">
+          </div>
+          <div class="field">
+            <label for="fecha_finalizacion">Fecha finalización</label>
+            <input type="date" id="fecha_finalizacion" name="fecha_finalizacion" value="{{ expediente.fecha_finalizacion.isoformat() if expediente.fecha_finalizacion else '' }}">
+          </div>
+          <div class="field">
+            <label for="producto">Producto</label>
+            <input type="text" id="producto" name="producto" value="{{ expediente.producto or '' }}">
+          </div>
+          <div class="field">
+            <label for="acabado">Acabado</label>
+            <input type="text" id="acabado" name="acabado" value="{{ expediente.acabado or '' }}">
+          </div>
+          <div class="field">
+            <label>Diseñador/a</label>
+            <p class="field-readonly">{{ expediente.disenador or current_user.nombre_completo }}</p>
+          </div>
+          <div class="field">
+            <label for="observaciones">Observaciones</label>
+            <textarea id="observaciones" name="observaciones" rows="4">{{ expediente.observaciones or '' }}</textarea>
+          </div>
+          <button type="submit" class="btn btn-primary">Guardar</button>
+        </form>
       </section>
 
       <section class="card" id="documentos-panel"
@@ -412,6 +435,17 @@
 {% endblock %}
 
 {% block scripts %}
+<dialog id="ficha-proyecto" class="ficha-dialogo">
+  <div class="ficha-cabecera">
+    <div>
+      <p class="muted ficha-subtitulo">Ficha proyecto</p>
+      <h2 class="ficha-titulo"></h2>
+    </div>
+    <button type="button" class="btn btn-secondary btn-sm ficha-cerrar">Cerrar</button>
+  </div>
+  <div class="ficha-cuerpo"></div>
+</dialog>
+<script src="/static/js/bc-autocomplete.js?v=3"></script>
 <script src="/static/js/document-drop.js?v=4"></script>
 <script src="/static/js/document-list.js?v=2"></script>
 <script src="/static/js/document-preview.js?v=3"></script>

@@ -303,6 +303,7 @@ def view_expediente(expediente_id: int):
             reverse=True,
         ),
         visor_url=settings.document_viewer_url.rstrip("/"),
+        **_contexto_ot(db, expediente.ot),
     )
 
 
@@ -349,7 +350,7 @@ def update_expediente(expediente_id: int):
     expediente.disenador = _disenador_actual()
     expediente.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
     db.commit()
-    return redirect(url_for("expedientes.view_expediente", expediente_id=expediente_id))
+    return redirect(url_for("expedientes.view_expediente", expediente_id=expediente_id) + "#detalle")
 
 
 def _volcar_adjuntos_de_peticiones(db, peticiones: list[Peticion]) -> bool:
