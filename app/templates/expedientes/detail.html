@@ -210,9 +210,19 @@
                data-upload-url="{{ url_for('expedientes.upload_documento_api', expediente_id=expediente.id) }}">
         <h2>Documentos</h2>
 
-        <div id="documentos-empty" class="documentos-empty muted" {% if expediente.documentos %}hidden{% endif %}>
-          Sin documentos. Cárgalos desde el visor.
-        </div>
+        {% set urls_peticion = [] %}
+        {% for peticion in peticiones %}
+          {% for adjunto in peticion.adjuntos %}
+            {% if adjunto.url %}{% set _ = urls_peticion.append(adjunto.url) %}{% endif %}
+          {% endfor %}
+        {% endfor %}
+        {% set ids_arte = [] %}
+        {% for arte in expediente.artes %}
+          {% for doc in arte.documentos %}
+            {% if doc.id not in ids_arte %}{% set _ = ids_arte.append(doc.id) %}{% endif %}
+          {% endfor %}
+        {% endfor %}
+        <p id="documentos-empty" class="documentos-empty muted" hidden>Sin documentos.</p>
 
         <div class="list-scroll" id="documentos-scroll" {% if not expediente.documentos %}hidden{% endif %}>
         <table class="table table-compact table-in-scroll table-doc-list" id="documentos-table">
@@ -274,6 +284,9 @@
                 data-doc-tipo="{{ doc.tipo }}"
                 data-doc-mime="{{ doc.mime_type or '' }}"
                 data-doc-url="{{ doc.url }}"
+                data-en-detalle="1"
+                data-en-peticion="{{ '1' if doc.url in urls_peticion else '0' }}"
+                data-en-arte="{{ '1' if doc.id in ids_arte else '0' }}"
                 data-viewer-session-url="{{ url_for('expedientes.crear_sesion_visor_documento', expediente_id=expediente.id, documento_id=doc.id) }}"
                 data-preview-kind="{{ preview.kind }}"
                 data-preview-src="{{ preview.src }}">
@@ -283,7 +296,7 @@
               </td>
               <td><span class="badge">{{ doc.tipo.replace('_', ' ') }}</span></td>
               <td>
-                <form method="post" action="{{ url_for('expedientes.delete_documento', expediente_id=expediente.id, documento_id=doc.id) }}"
+                <form class="doc-delete" method="post" action="{{ url_for('expedientes.delete_documento', expediente_id=expediente.id, documento_id=doc.id) }}"
                       onsubmit="return confirm('¿Eliminar este documento?')">
                   <button type="submit" class="btn btn-sm btn-danger">Eliminar</button>
                 </form>
@@ -399,8 +412,8 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="/static/js/document-drop.js?v=3"></script>
-<script src="/static/js/document-list.js"></script>
-<script src="/static/js/document-preview.js?v=2"></script>
+<script src="/static/js/document-drop.js?v=4"></script>
+<script src="/static/js/document-list.js?v=2"></script>
+<script src="/static/js/document-preview.js?v=3"></script>
 <script src="/static/js/correo-links.js"></script>
 {% endblock %}

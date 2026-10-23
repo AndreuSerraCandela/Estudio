@@ -11,8 +11,22 @@
     tipo: null,
   };
 
+  function seccionActual() {
+    const hash = location.hash;
+    if (hash === "#peticiones") return "peticion";
+    if (hash === "#arte-final") return "arte";
+    return "detalle";
+  }
+
+  function enSeccion(row) {
+    const seccion = seccionActual();
+    if (seccion === "peticion") return row.dataset.enPeticion === "1";
+    if (seccion === "arte") return row.dataset.enArte === "1";
+    return row.dataset.enDetalle !== "0";
+  }
+
   function allRows() {
-    return Array.from(tbody.querySelectorAll(".doc-preview-row"));
+    return Array.from(tbody.querySelectorAll(".doc-preview-row")).filter(enSeccion);
   }
 
   function rowValue(row, field) {
@@ -51,11 +65,14 @@
   }
 
   function applyFiltersAndSort() {
-    const rows = allRows();
+    const rows = Array.from(tbody.querySelectorAll(".doc-preview-row"));
     let visibleCount = 0;
+    let enSeccionCount = 0;
 
     rows.forEach((row) => {
-      const visible = Object.entries(activeFilters).every(([field, selected]) => {
+      const deLaSeccion = enSeccion(row);
+      if (deLaSeccion) enSeccionCount += 1;
+      const visible = deLaSeccion && Object.entries(activeFilters).every(([field, selected]) => {
         if (selected === null) return true;
         return selected.has(normalized(rowValue(row, field)));
       });
@@ -63,8 +80,21 @@
       if (visible) visibleCount += 1;
     });
 
+    const emptyEl = document.getElementById("documentos-empty");
+    const scrollEl = document.getElementById("documentos-scroll");
+    const textos = {
+      detalle: "Sin documentos. Cárgalos desde el visor.",
+      peticion: "Esta petición no tiene documentos.",
+      arte: "Todavía no hay documentos en el arte final.",
+    };
+    if (emptyEl) {
+      emptyEl.hidden = enSeccionCount > 0;
+      emptyEl.textContent = textos[seccionActual()] || textos.detalle;
+    }
+    if (scrollEl) scrollEl.hidden = enSeccionCount === 0;
+
     if (noMatchEl) {
-      noMatchEl.hidden = visibleCount > 0 || rows.length === 0;
+      noMatchEl.hidden = visibleCount > 0 || enSeccionCount === 0;
     }
 
     if (sortCol) {
@@ -216,5 +246,7 @@
     });
   });
 
+  applyFiltersAndSort();
+  window.addEventListener("hashchange", applyFiltersAndSort);
   updateHeaderState();
 })();

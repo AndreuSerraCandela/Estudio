@@ -17,7 +17,7 @@
   let hoverTimer = null;
 
   function rows() {
-    return Array.from(tbody.querySelectorAll(".doc-preview-row"));
+    return Array.from(tbody.querySelectorAll(".doc-preview-row")).filter((row) => !row.hidden);
   }
 
   function setStatus(message, isError = false) {
@@ -154,10 +154,27 @@
 
   rows().forEach(bindRow);
 
+  function mostrarSeccion() {
+    const lista = rows();
+    lockedRow = lista[0] || null;
+    pendingRow = lockedRow;
+    if (lockedRow) {
+      showPreview(lockedRow);
+      return;
+    }
+    if (titleEl) titleEl.textContent = "Selecciona un documento";
+    if (openEl) openEl.hidden = true;
+    callViewer("ClearFiles", []);
+  }
+
   iframeEl.addEventListener("load", () => {
     viewerReady = true;
     const row = pendingRow || lockedRow || rows()[0];
     if (row) showPreview(row);
+  });
+
+  window.addEventListener("hashchange", () => {
+    window.setTimeout(mostrarSeccion, 0);
   });
 
   window.addEventListener("message", (event) => {

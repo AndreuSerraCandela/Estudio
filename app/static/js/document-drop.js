@@ -35,6 +35,9 @@
     tr.dataset.docTipo = doc.tipo || "";
     tr.dataset.docMime = doc.mime_type || "";
     tr.dataset.docUrl = doc.url;
+    tr.dataset.enDetalle = "1";
+    tr.dataset.enPeticion = "0";
+    tr.dataset.enArte = "0";
     tr.dataset.viewerSessionUrl = doc.viewer_session_url || "";
     tr.dataset.previewKind = doc.preview_kind || "other";
     tr.dataset.previewSrc = doc.preview_src || doc.url;

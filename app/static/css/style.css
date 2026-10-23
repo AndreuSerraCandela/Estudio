@@ -470,6 +470,9 @@ textarea { resize: vertical; }
 .expediente-shell:has(#peticiones:target) .correos-section,
 .expediente-shell:has(#arte-final:target) .correos-section { display: none; }
 
+.expediente-shell:has(#peticiones:target) .doc-delete,
+.expediente-shell:has(#arte-final:target) .doc-delete { display: none; }
+
 .peticion-ficha + .peticion-ficha {
   margin-top: 1rem;
   padding-top: 1rem;
