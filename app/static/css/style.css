@@ -483,34 +483,28 @@ textarea { resize: vertical; }
 
 .detail-page-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(420px, 42vw);
-  grid-template-areas: "main preview";
+  grid-template-columns: minmax(0, 1.6fr) minmax(380px, 34vw);
+  grid-template-areas:
+    "info docs"
+    "info preview"
+    "mail preview";
   gap: 1.25rem;
   align-items: start;
 }
 
-.detail-page-main {
-  display: grid;
-  grid-area: main;
-  grid-template-columns: minmax(260px, 0.9fr) minmax(280px, 1.1fr);
-  grid-template-areas:
-    "info docs"
-    "mail mail";
-  gap: 1.25rem;
-  align-items: start;
-  min-width: 0;
-}
+.detail-page-main { display: contents; }
 
 .expediente-pane { grid-area: info; }
 #documentos-panel { grid-area: docs; }
+#documentos-panel .list-scroll { max-height: 190px; }
 .correos-section { grid-area: mail; }
 .detail-preview { grid-area: preview; }
 
 .detail-preview {
   position: sticky;
   top: 1rem;
-  height: calc(100vh - 7rem);
-  min-height: 560px;
+  height: calc(100vh - 18rem);
+  min-height: 420px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -1255,15 +1249,9 @@ code { font-size: 0.85rem; background: #f8f0f2; color: var(--primary); padding: 
   .detail-page-layout {
     grid-template-columns: 1fr;
     grid-template-areas:
-      "main"
-      "preview";
-  }
-
-  .detail-page-main {
-    grid-template-columns: 1fr;
-    grid-template-areas:
       "info"
       "docs"
+      "preview"
       "mail";
   }
 
