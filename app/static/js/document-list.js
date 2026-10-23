@@ -21,7 +21,7 @@
   function enSeccion(row) {
     const seccion = seccionActual();
     if (seccion === "peticion") return row.dataset.enPeticion === "1";
-    if (seccion === "arte") return row.dataset.enArte === "1";
+    if (seccion === "arte") return row.dataset.enArte === "1" || row.dataset.arteMarcado === "1";
     return row.dataset.enDetalle !== "0";
   }
 
@@ -248,5 +248,6 @@
 
   applyFiltersAndSort();
   window.addEventListener("hashchange", applyFiltersAndSort);
+  document.addEventListener("arte-final:seleccion", applyFiltersAndSort);
   updateHeaderState();
 })();

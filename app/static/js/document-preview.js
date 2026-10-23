@@ -112,7 +112,7 @@
 
   function bindRow(row) {
     row.addEventListener("mouseenter", () => {
-      if (lockedRow || !loadsByUrl(row)) return;
+      if (lockedRow) return;
       if (hoverTimer) window.clearTimeout(hoverTimer);
       hoverTimer = window.setTimeout(() => showPreview(row), 200);
     });
@@ -152,7 +152,41 @@
     setStatus("");
   }
 
-  rows().forEach(bindRow);
+  function filaDe(id) {
+    return tbody.querySelector(`.doc-preview-row[data-doc-id="${id}"]`);
+  }
+
+  function limpiarSiVacio() {
+    if (rows().length) return;
+    if (titleEl) titleEl.textContent = "Selecciona un documento";
+    if (openEl) openEl.hidden = true;
+    callViewer("ClearFiles", []);
+  }
+
+  document.querySelectorAll('.arte-docs input[name="documento_ids"]').forEach((input) => {
+    const etiqueta = input.closest("label");
+    etiqueta?.addEventListener("mouseenter", () => {
+      if (hoverTimer) window.clearTimeout(hoverTimer);
+      hoverTimer = window.setTimeout(() => {
+        const fila = filaDe(input.value);
+        if (fila) showPreview(fila);
+      }, 150);
+    });
+    input.addEventListener("change", () => {
+      document.querySelectorAll(`.arte-docs input[name="documento_ids"][value="${input.value}"]`).forEach((otro) => {
+        otro.checked = input.checked;
+      });
+      const fila = filaDe(input.value);
+      if (!fila || fila.dataset.enArte === "1") return;
+      fila.dataset.arteMarcado = input.checked ? "1" : "0";
+      document.dispatchEvent(new CustomEvent("arte-final:seleccion"));
+      if (input.checked) showPreview(fila);
+      else if (rows().length) showPreview(rows()[0]);
+      else limpiarSiVacio();
+    });
+  });
+
+  tbody.querySelectorAll(".doc-preview-row").forEach(bindRow);
 
   function mostrarSeccion() {
     const lista = rows();
