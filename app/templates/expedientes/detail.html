@@ -350,9 +350,16 @@
   </div>
 
   <div class="detail-side">
-      <section class="card" id="documentos-panel"
+      <section class="card fasttab" id="documentos-panel"
                data-upload-url="{{ url_for('expedientes.upload_documento_api', expediente_id=expediente.id) }}">
-        <h2>Documentos</h2>
+        <div class="fasttab-head">
+          <button type="button" class="fasttab-toggle" aria-expanded="true" aria-controls="documentos-body">
+            <span class="fasttab-chevron" aria-hidden="true"></span>
+            Documentos
+          </button>
+          <p class="pane-resumen" id="documentos-resumen">{% if expediente.documentos %}{{ expediente.documentos|map(attribute='nombre')|join(', ') }}{% else %}Sin documentos{% endif %}</p>
+        </div>
+        <div class="fasttab-body" id="documentos-body">
 
         {% set urls_peticion = [] %}
         {% for peticion in peticiones %}
@@ -451,6 +458,7 @@
         </table>
         <p id="documentos-no-match" class="documentos-no-match muted" hidden>Ningún documento coincide con el filtro.</p>
         </div>
+        </div>
       </section>
 
   <aside class="card detail-preview" id="document-preview"
@@ -484,7 +492,8 @@
 </dialog>
 <script>
 document.querySelectorAll(".fasttab-toggle").forEach((button) => {
-  const pane = button.closest(".expediente-pane");
+  const pane = button.closest(".expediente-pane, .fasttab");
+  if (!pane) return;
   const key = "expediente-fasttab-" + pane.id;
   if (sessionStorage.getItem(key) === "0") {
     pane.classList.add("is-collapsed");
@@ -507,7 +516,7 @@ if (medios && resumenArte) {
 </script>
 <script src="/static/js/bc-autocomplete.js?v=3"></script>
 <script src="/static/js/document-drop.js?v=4"></script>
-<script src="/static/js/document-list.js?v=3"></script>
-<script src="/static/js/document-preview.js?v=4"></script>
+<script src="/static/js/document-list.js?v=4"></script>
+<script src="/static/js/document-preview.js?v=5"></script>
 <script src="/static/js/correo-links.js"></script>
 {% endblock %}

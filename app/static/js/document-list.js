@@ -110,6 +110,11 @@
     }
 
     updateHeaderState();
+    const resumen = document.getElementById("documentos-resumen");
+    if (resumen) {
+      const nombres = allRows().map((row) => row.dataset.docNombre).filter(Boolean);
+      resumen.textContent = nombres.length ? nombres.join(", ") : "Sin documentos";
+    }
   }
 
   function closeMenus(exceptMenu = null) {

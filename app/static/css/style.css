@@ -566,6 +566,7 @@ textarea { resize: vertical; }
   min-width: 0;
   margin-bottom: 0.85rem;
 }
+.is-collapsed > .fasttab-head,
 .expediente-pane.is-collapsed .fasttab-head { margin-bottom: 0; }
 .fasttab-toggle {
   display: inline-flex;

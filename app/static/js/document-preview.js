@@ -76,9 +76,17 @@
     return payload;
   }
 
-  async function showPreview(row) {
+  async function showPreview(row, options = {}) {
     if (!row) return;
-    mark(row);
+    if (options.marcar === false) {
+      if (titleEl) titleEl.textContent = row.dataset.docNombre || "Documento";
+      if (openEl) {
+        openEl.href = row.dataset.docUrl || "#";
+        openEl.hidden = !row.dataset.docUrl;
+      }
+    } else {
+      mark(row);
+    }
     if (!viewerReady) {
       pendingRow = row;
       return;
@@ -119,12 +127,14 @@
     row.addEventListener("click", (event) => {
       if (event.target.closest("form, button")) return;
       lockedRow = row;
+      filaFija = row;
       showPreview(row);
     });
     row.addEventListener("keydown", (event) => {
       if (event.key !== "Enter" && event.key !== " ") return;
       event.preventDefault();
       lockedRow = row;
+      filaFija = row;
       showPreview(row);
     });
   }
@@ -163,14 +173,33 @@
     callViewer("ClearFiles", []);
   }
 
+  let filaFija = null;
+
+  function vistaAnterior() {
+    if (filaFija && !filaFija.hidden) showPreview(filaFija);
+    else if (rows().length) showPreview(rows()[0]);
+    else limpiarSiVacio();
+  }
+
   document.querySelectorAll('.arte-docs input[name="documento_ids"]').forEach((input) => {
     const etiqueta = input.closest("label");
     etiqueta?.addEventListener("mouseenter", () => {
       if (hoverTimer) window.clearTimeout(hoverTimer);
       hoverTimer = window.setTimeout(() => {
         const fila = filaDe(input.value);
-        if (fila) showPreview(fila);
+        if (fila) showPreview(fila, { marcar: false });
       }, 150);
+    });
+    etiqueta?.addEventListener("mouseleave", () => {
+      if (hoverTimer) window.clearTimeout(hoverTimer);
+      if (input.checked) return;
+      vistaAnterior();
+    });
+    etiqueta?.addEventListener("mousedown", (event) => {
+      if (event.target !== input) event.preventDefault();
+    });
+    etiqueta?.addEventListener("click", (event) => {
+      if (event.target !== input) event.preventDefault();
     });
     input.addEventListener("change", () => {
       document.querySelectorAll(`.arte-docs input[name="documento_ids"][value="${input.value}"]`).forEach((otro) => {
@@ -180,9 +209,15 @@
       if (!fila || fila.dataset.enArte === "1") return;
       fila.dataset.arteMarcado = input.checked ? "1" : "0";
       document.dispatchEvent(new CustomEvent("arte-final:seleccion"));
-      if (input.checked) showPreview(fila);
-      else if (rows().length) showPreview(rows()[0]);
-      else limpiarSiVacio();
+      if (input.checked) {
+        filaFija = fila;
+        showPreview(fila);
+      } else if (filaFija === fila) {
+        filaFija = rows()[0] || null;
+        vistaAnterior();
+      } else {
+        vistaAnterior();
+      }
     });
   });
 
@@ -191,6 +226,7 @@
   function mostrarSeccion() {
     const lista = rows();
     lockedRow = lista[0] || null;
+    filaFija = lockedRow;
     pendingRow = lockedRow;
     if (lockedRow) {
       showPreview(lockedRow);
