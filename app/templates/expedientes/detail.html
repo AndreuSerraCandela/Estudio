@@ -26,7 +26,18 @@
   <div class="detail-page-main">
 
 <section class="card expediente-pane" id="arte-final">
-  <h2>Información</h2>
+  {% set destinatarios = [] %}
+  {% for arte in expediente.artes %}
+    {% if arte.medios_nombre and arte.medios_nombre not in destinatarios %}{% set _ = destinatarios.append(arte.medios_nombre) %}{% endif %}
+  {% endfor %}
+  <div class="fasttab-head">
+    <button type="button" class="fasttab-toggle" aria-expanded="true" aria-controls="arte-final-body">
+      <span class="fasttab-chevron" aria-hidden="true"></span>
+      Información
+    </button>
+    <p class="pane-resumen" id="arte-resumen">{{ destinatarios|join(', ') or (medios_persona.nombre if medios_persona else 'Sin asignar') }}</p>
+  </div>
+  <div class="fasttab-body" id="arte-final-body">
   {% if expediente.artes %}
   <ul class="arte-actual-lista">
     {% for arte in expediente.artes %}
@@ -128,10 +139,20 @@
     <p class="arte-nota muted">Sin proyecto: se publica y se avisa al comercial. Los archivos nuevos también se guardan en Documentos.</p>
     {% endif %}
   </form>
+  </div>
 </section>
 
 <section class="card expediente-pane" id="peticiones">
-  <h2>Información</h2>
+  {% set texto_peticion = '' %}
+  {% if peticiones %}{% set texto_peticion = (peticiones[0].descripcion or peticiones[0].titulo or '')|trim %}{% endif %}
+  <div class="fasttab-head">
+    <button type="button" class="fasttab-toggle" aria-expanded="true" aria-controls="peticiones-body">
+      <span class="fasttab-chevron" aria-hidden="true"></span>
+      Información
+    </button>
+    <p class="pane-resumen">{{ (texto_peticion[:110] ~ ('…' if texto_peticion|length > 110 else '')) if texto_peticion else 'Sin peticiones' }}</p>
+  </div>
+  <div class="fasttab-body" id="peticiones-body">
   {% if peticiones %}
   {% for peticion in peticiones %}
   <article class="peticion-ficha">
@@ -158,10 +179,23 @@
   {% else %}
   <p class="muted">Este expediente no tiene peticiones.</p>
   {% endif %}
+  </div>
 </section>
 
       <section class="card expediente-pane" id="detalle">
-        <h2>Información</h2>
+        {% set texto_trabajo = (expediente.trabajo or '')|trim %}
+        <div class="fasttab-head">
+          <button type="button" class="fasttab-toggle" aria-expanded="true" aria-controls="detalle-body">
+            <span class="fasttab-chevron" aria-hidden="true"></span>
+            Información
+          </button>
+          <p class="pane-resumen">
+            {{ (texto_trabajo[:80] ~ ('…' if texto_trabajo|length > 80 else '')) if texto_trabajo else 'Sin descripción del trabajo' }}
+            {% if expediente.comercial %} · {{ expediente.comercial }}{% endif %}
+            {% if expediente.proyecto or expediente.bc_proyecto_id %} · {{ expediente.proyecto or expediente.bc_proyecto_id }}{% endif %}
+          </p>
+        </div>
+        <div class="fasttab-body" id="detalle-body">
         <form method="post" action="{{ url_for('expedientes.update_expediente', expediente_id=expediente.id) }}" class="detalle-form">
           <div class="field">
             <label for="numero_expediente">Nº expediente</label>
@@ -227,6 +261,7 @@
           </div>
           <button type="submit" class="btn btn-primary">Guardar</button>
         </form>
+        </div>
       </section>
 
       <section class="card" id="documentos-panel"
@@ -445,6 +480,29 @@
   </div>
   <div class="ficha-cuerpo"></div>
 </dialog>
+<script>
+document.querySelectorAll(".fasttab-toggle").forEach((button) => {
+  const pane = button.closest(".expediente-pane");
+  const key = "expediente-fasttab-" + pane.id;
+  if (sessionStorage.getItem(key) === "0") {
+    pane.classList.add("is-collapsed");
+    button.setAttribute("aria-expanded", "false");
+  }
+  button.addEventListener("click", () => {
+    const collapsed = pane.classList.toggle("is-collapsed");
+    button.setAttribute("aria-expanded", collapsed ? "false" : "true");
+    sessionStorage.setItem(key, collapsed ? "0" : "1");
+  });
+});
+const medios = document.getElementById("medios_empleado");
+const resumenArte = document.getElementById("arte-resumen");
+if (medios && resumenArte) {
+  medios.addEventListener("change", () => {
+    const elegido = medios.selectedOptions[0];
+    resumenArte.textContent = medios.value && elegido ? elegido.textContent : "Sin asignar";
+  });
+}
+</script>
 <script src="/static/js/bc-autocomplete.js?v=3"></script>
 <script src="/static/js/document-drop.js?v=4"></script>
 <script src="/static/js/document-list.js?v=3"></script>

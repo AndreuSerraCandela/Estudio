@@ -503,11 +503,10 @@ textarea { resize: vertical; }
 .detail-preview {
   position: sticky;
   top: 1rem;
-  height: calc(100vh - 18rem);
-  min-height: 420px;
+  height: auto;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .detail-preview-header {
@@ -554,13 +553,60 @@ textarea { resize: vertical; }
 .preview-frame,
 .preview-image {
   width: 100%;
-  flex: 1 1 0;
-  min-height: 0;
-  height: 0;
+  flex: 1 1 auto;
+  min-height: 62vh;
+  height: 62vh;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: #fff;
 }
+
+.fasttab-head {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  min-width: 0;
+  margin-bottom: 0.85rem;
+}
+.expediente-pane.is-collapsed .fasttab-head { margin-bottom: 0; }
+.fasttab-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex: none;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font: inherit;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text);
+  cursor: pointer;
+}
+.fasttab-chevron {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-right: 2px solid var(--primary);
+  border-bottom: 2px solid var(--primary);
+  transform: rotate(45deg);
+  margin-top: -0.2rem;
+}
+.is-collapsed .fasttab-chevron {
+  transform: rotate(-45deg);
+  margin-top: 0.15rem;
+}
+.pane-resumen {
+  display: none;
+  margin: 0;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.is-collapsed .pane-resumen { display: block; }
+.is-collapsed .fasttab-body { display: none; }
 
 .preview-image {
   object-fit: contain;
