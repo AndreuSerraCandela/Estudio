@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 
 {% block title %}Expediente {{ expediente.numero_expediente }} — Estudio{% endblock %}
+{% block body_class %}page-wide{% endblock %}
 {% block main_class %}main-wide{% endblock %}
 
 {% block content %}
@@ -15,8 +16,20 @@
   </div>
 </div>
 
-<section class="card" id="arte-final">
-  <h2>Arte final</h2>
+<div class="expediente-shell">
+  <nav class="expediente-tree" aria-label="Secciones del expediente">
+    <p class="expediente-tree-root">{{ expediente.numero_expediente }}</p>
+    <a class="tree-detalle" href="#detalle">Detalle expediente</a>
+    <a class="tree-peticiones" href="#peticiones">Peticiones{% if peticiones %} <span class="tree-count">{{ peticiones|length }}</span>{% endif %}</a>
+    <a class="tree-arte" href="#arte-final">Arte final{% if expediente.artes %} <span class="tree-count">{{ expediente.artes|length }}</span>{% endif %}</a>
+  </nav>
+
+  <div class="expediente-workspace">
+  <div class="detail-page-layout">
+  <div class="detail-page-main">
+
+<section class="card expediente-pane" id="arte-final">
+  <h2>Información</h2>
   {% if expediente.artes %}
   <ul class="arte-actual-lista">
     {% for arte in expediente.artes %}
@@ -120,24 +133,37 @@
   </form>
 </section>
 
-{% if peticiones %}
-<section class="card">
-  <h2>Peticiones</h2>
-  <ul>
-    {% for peticion in peticiones %}
-    <li>
-      {{ peticion.fecha.strftime('%d/%m/%Y') }} · {{ peticion.comercial }} · {{ peticion.descripcion or peticion.titulo }}
-      {% if peticion.imagen_nueva %}<span class="badge">Imagen nueva</span>{% endif %}
-    </li>
-    {% endfor %}
-  </ul>
+<section class="card expediente-pane" id="peticiones">
+  <h2>Información</h2>
+  {% if peticiones %}
+  {% for peticion in peticiones %}
+  <article class="peticion-ficha">
+    <p class="muted">{{ peticion.fecha.strftime('%d/%m/%Y') }} · {{ peticion.comercial }}</p>
+    <h3>{{ peticion.titulo }}</h3>
+    <dl class="detail-list">
+      <dt>Tipo</dt>
+      <dd>{{ 'Proyecto' if peticion.tipo == 'proyecto' else ('Interna' if peticion.tipo == 'interna' else 'Contacto') }}</dd>
+      <dt>Referencia</dt>
+      <dd>{{ peticion.referencia or '—' }}{% if peticion.empresa %} · {{ peticion.empresa }}{% endif %}</dd>
+      <dt>Estado</dt>
+      <dd>{{ peticion.estado }}{% if peticion.imagen_nueva %} <span class="badge">Imagen nueva</span>{% endif %}</dd>
+    </dl>
+    <p class="pre-wrap">{{ peticion.descripcion or 'Sin descripción.' }}</p>
+    {% if peticion.adjuntos %}
+    <ul class="arte-archivos">
+      {% for adjunto in peticion.adjuntos %}
+      <li><a href="{{ adjunto.url }}" target="_blank" rel="noopener">{{ adjunto.nombre }}</a></li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+  </article>
+  {% endfor %}
+  {% else %}
+  <p class="muted">Este expediente no tiene peticiones.</p>
+  {% endif %}
 </section>
-{% endif %}
 
-<div class="detail-page-layout">
-  <div class="detail-page-main">
-    <div class="detail-grid">
-      <section class="card">
+      <section class="card expediente-pane" id="detalle">
         <h2>Información</h2>
         <dl class="detail-list">
           <dt>Cliente</dt>
@@ -269,7 +295,6 @@
         <p id="documentos-no-match" class="documentos-no-match muted" hidden>Ningún documento coincide con el filtro.</p>
         </div>
       </section>
-    </div>
 
     <section class="card correos-section">
       <div class="correos-header">
@@ -368,6 +393,8 @@
     <iframe id="preview-iframe" class="preview-frame" title="Vista previa del documento"
             src="{{ visor_url }}/embed?factbox=1&language=es-ES"></iframe>
   </aside>
+  </div>
+  </div>
 </div>
 {% endblock %}
 
