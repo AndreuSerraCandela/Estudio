@@ -90,6 +90,20 @@
         </div>
       </form>
       {% endif %}
+      <form method="post" action="{{ url_for('expedientes.enviar_arte_cliente', expediente_id=expediente.id, arte_id=arte.id) }}" class="arte-enviar">
+        <div class="arte-nuevo-fila">
+          <div class="field">
+            <label for="cliente-arte-{{ arte.id }}">Enviar al cliente</label>
+            <input type="email" id="cliente-arte-{{ arte.id }}" name="destinatario" required placeholder="cliente@ejemplo.com">
+          </div>
+          <div class="field">
+            <label for="mensaje-arte-{{ arte.id }}">Mensaje</label>
+            <input type="text" id="mensaje-arte-{{ arte.id }}" name="mensaje" maxlength="1000" placeholder="Texto opcional">
+          </div>
+          <button type="submit" class="btn btn-secondary">Enviar</button>
+        </div>
+        <p class="muted arte-nota">El correo lleva cada archivo como enlace y un zip con todos, también como enlace.</p>
+      </form>
     </li>
     {% endfor %}
   </ul>

@@ -1,6 +1,9 @@
 import base64
+import io
 import logging
 import mimetypes
+import re
+import zipfile
 from datetime import date, datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
@@ -621,6 +624,127 @@ def quitar_documento_arte(expediente_id: int, arte_id: int, documento_id: int):
     arte.documentos.remove(documento)
     db.commit()
     flash(f"«{documento.nombre}» queda en el expediente, fuera de este arte final.", "success")
+    return _volver_arte(expediente_id)
+
+
+def _nombre_en_zip(nombre: str, usados: set[str]) -> str:
+    limpio = Path(nombre or "archivo").name.replace("\\", "_").replace("/", "_").strip() or "archivo"
+    base, ext = Path(limpio).stem, Path(limpio).suffix
+    candidato = limpio
+    numero = 2
+    while candidato.lower() in usados:
+        candidato = f"{base}-{numero}{ext}"
+        numero += 1
+    usados.add(candidato.lower())
+    return candidato
+
+
+def _zip_de_arte(arte: ArteFinal) -> bytes:
+    buffer = io.BytesIO()
+    usados: set[str] = set()
+    with zipfile.ZipFile(buffer, "w", compression=zipfile.ZIP_DEFLATED) as paquete:
+        for documento in arte.documentos:
+            respuesta = requests.get(documento.url, timeout=90)
+            respuesta.raise_for_status()
+            paquete.writestr(_nombre_en_zip(documento.nombre, usados), respuesta.content)
+    return buffer.getvalue()
+
+
+def _nombre_zip_arte(expediente: Expediente, arte: ArteFinal) -> str:
+    titulo = re.sub(r"[^\w.\-]+", "-", arte.descripcion, flags=re.UNICODE).strip("-") or "arte-final"
+    return f"{expediente.numero_expediente}-{titulo}"[:80] + ".zip"
+
+
+def _cuerpo_arte_cliente(expediente: Expediente, arte: ArteFinal, zip_nombre: str, zip_url: str, mensaje: str) -> str:
+    lineas = []
+    if mensaje.strip():
+        lineas.extend([mensaje.strip(), ""])
+    lineas.extend(
+        [
+            f"Arte final del expediente {expediente.numero_expediente} ({expediente.cliente}).",
+            arte.descripcion,
+            "",
+            "Archivos:",
+        ]
+    )
+    lineas.extend(f"- {documento.nombre}: {documento.url}" for documento in arte.documentos)
+    lineas.extend(["", "Todo en un archivo:", f"- {zip_nombre}: {zip_url}"])
+    return "\n".join(lineas)
+
+
+@bp.post("/<int:expediente_id>/arte-final/<int:arte_id>/enviar")
+def enviar_arte_cliente(expediente_id: int, arte_id: int):
+    db = _db()
+    expediente = db.get(Expediente, expediente_id)
+    arte = _arte_del_expediente(db, expediente_id, arte_id)
+    if expediente is None or arte is None:
+        abort(404, description="Arte final no encontrado")
+    if not arte.documentos:
+        flash("Este arte final no tiene archivos para enviar.", "warning")
+        return _volver_arte(expediente_id)
+
+    destinatario = request.form.get("destinatario", "").strip()
+    mensaje = request.form.get("mensaje", "").strip()
+    if not destinatario or "@" not in destinatario:
+        flash("Indica el email del cliente.", "warning")
+        return _volver_arte(expediente_id)
+
+    config = get_usuario_config(db, current_user.id)
+    smtp = smtp_settings_from_config(config)
+    if smtp is None:
+        flash("Configura el correo en Configuración antes de enviar el arte final.", "warning")
+        return _volver_arte(expediente_id)
+
+    nombre_zip = _nombre_zip_arte(expediente, arte)
+    try:
+        contenido = _zip_de_arte(arte)
+        subido = strapi_service.upload_file(contenido, nombre_zip, "application/zip")
+    except (requests.RequestException, StrapiError, zipfile.BadZipFile) as exc:
+        logger.exception("No se pudo preparar el zip del arte final %s", arte.id)
+        flash(f"No se pudo preparar el zip del arte final: {exc}", "error")
+        return _volver_arte(expediente_id)
+
+    zip_doc = Documento(
+        expediente_id=expediente.id,
+        strapi_id=subido.strapi_id,
+        strapi_document_id=subido.strapi_document_id,
+        url=subido.url,
+        nombre=subido.nombre,
+        tipo=TipoDocumento.OTRO.value,
+        descripcion=f"Zip del arte final «{arte.descripcion}»",
+        mime_type="application/zip",
+    )
+    db.add(zip_doc)
+    db.commit()
+
+    asunto = f"{subject_marker(expediente.numero_expediente)} Arte final — {arte.descripcion}"[:500]
+    cuerpo = _cuerpo_arte_cliente(expediente, arte, subido.nombre, subido.url, mensaje)
+    try:
+        eml = enviar_correo_smtp(smtp, destinatario, asunto, cuerpo)
+    except SmtpError as exc:
+        flash(f"El zip está en Documentos, pero el correo no se ha enviado: {exc}", "warning")
+        return _volver_arte(expediente_id)
+
+    if config.imap_guardar_copia_enviados:
+        imap_settings = imap_settings_from_config(config)
+        if imap_settings is not None:
+            try:
+                guardar_copia_enviada_imap(imap_settings, eml)
+            except ImapError as exc:
+                logger.warning("Arte enviado, pero no se guardó la copia IMAP: %s", exc)
+
+    try:
+        mail_info = parse_eml_bytes(
+            eml,
+            f"enviado-{expediente.numero_expediente}.eml",
+            direccion="enviado",
+            usuario_email=current_user.email,
+        )
+        _importar_correo(db, expediente.id, mail_info)
+    except Exception:
+        logger.exception("Arte enviado, pero no se guardó el correo en el expediente %s", expediente.id)
+
+    flash(f"Arte final enviado a {destinatario}.", "success")
     return _volver_arte(expediente_id)
 
 
