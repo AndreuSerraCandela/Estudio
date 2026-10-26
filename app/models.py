@@ -134,6 +134,31 @@ class ArteFinal(Base):
 
     expediente: Mapped["Expediente"] = relationship(back_populates="artes")
     documentos: Mapped[list["Documento"]] = relationship(secondary=arte_final_documentos)
+    envios: Mapped[list["ArteFinalEnvio"]] = relationship(
+        back_populates="arte",
+        cascade="all, delete-orphan",
+        order_by="ArteFinalEnvio.fecha.desc()",
+    )
+
+
+class ArteFinalEnvio(Base):
+    """Envío de un arte final al cliente, con copia en el correo del expediente."""
+
+    __tablename__ = "arte_final_envios"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    arte_final_id: Mapped[int] = mapped_column(ForeignKey("arte_finales.id", ondelete="CASCADE"), nullable=False, index=True)
+    destinatario: Mapped[str] = mapped_column(String(500), nullable=False)
+    asunto: Mapped[str | None] = mapped_column(String(500))
+    mensaje: Mapped[str | None] = mapped_column(Text)
+    fecha: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    enviado_por_nombre: Mapped[str | None] = mapped_column(String(255))
+    correo_id: Mapped[int | None] = mapped_column(ForeignKey("correos.id", ondelete="SET NULL"))
+    zip_documento_id: Mapped[int | None] = mapped_column(ForeignKey("documentos.id", ondelete="SET NULL"))
+
+    arte: Mapped["ArteFinal"] = relationship(back_populates="envios")
+    correo: Mapped["Correo | None"] = relationship()
+    zip_documento: Mapped["Documento | None"] = relationship()
 
 
 class Peticion(Base):

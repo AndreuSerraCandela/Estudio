@@ -18,7 +18,7 @@ from werkzeug.exceptions import HTTPException
 
 from app.document_utils import documento_to_dict, guess_tipo, preview_kind
 from app.expediente_utils import ot_es_automatica, siguiente_numero_expediente, siguiente_numero_ot
-from app.models import ArteFinal, Correo, Documento, Expediente, Peticion, TipoDocumento, arte_final_documentos
+from app.models import ArteFinal, ArteFinalEnvio, Correo, Documento, Expediente, Peticion, TipoDocumento, arte_final_documentos
 from app.services.bc import BCError, bc_service
 from app.config import settings
 from app.services.bc_proyectos import BcProyectoError, buscar_proyectos, ficha_proyecto
@@ -733,6 +733,7 @@ def enviar_arte_cliente(expediente_id: int, arte_id: int):
             except ImapError as exc:
                 logger.warning("Arte enviado, pero no se guardó la copia IMAP: %s", exc)
 
+    correo = None
     try:
         mail_info = parse_eml_bytes(
             eml,
@@ -740,11 +741,31 @@ def enviar_arte_cliente(expediente_id: int, arte_id: int):
             direccion="enviado",
             usuario_email=current_user.email,
         )
-        _importar_correo(db, expediente.id, mail_info)
+        correo = _importar_correo(db, expediente.id, mail_info)
     except Exception:
         logger.exception("Arte enviado, pero no se guardó el correo en el expediente %s", expediente.id)
 
-    flash(f"Arte final enviado a {destinatario}.", "success")
+    db.add(
+        ArteFinalEnvio(
+            arte_final_id=arte.id,
+            destinatario=destinatario,
+            asunto=asunto,
+            mensaje=mensaje or None,
+            fecha=datetime.now(timezone.utc).replace(tzinfo=None),
+            enviado_por_nombre=_disenador_actual(),
+            correo_id=correo.id if correo else None,
+            zip_documento_id=zip_doc.id,
+        )
+    )
+    db.commit()
+
+    if correo is None:
+        flash(
+            f"Arte final enviado a {destinatario}. Queda anotado en el arte, pero no se pudo guardar la copia en Correo.",
+            "warning",
+        )
+    else:
+        flash(f"Arte final enviado a {destinatario}. Queda anotado en el arte y en Correo.", "success")
     return _volver_arte(expediente_id)
 
 

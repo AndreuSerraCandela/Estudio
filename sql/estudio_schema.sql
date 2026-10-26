@@ -304,6 +304,27 @@ CLOSE antiguos;
 DEALLOCATE antiguos;
 ');
 
+IF OBJECT_ID('dbo.arte_final_envios', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.arte_final_envios (
+        id INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+        arte_final_id INT NOT NULL,
+        destinatario NVARCHAR(500) NOT NULL,
+        asunto NVARCHAR(500) NULL,
+        mensaje NVARCHAR(MAX) NULL,
+        fecha DATETIME2 NOT NULL CONSTRAINT DF_arte_final_envios_fecha DEFAULT SYSUTCDATETIME(),
+        enviado_por_nombre NVARCHAR(255) NULL,
+        correo_id INT NULL,
+        zip_documento_id INT NULL,
+        CONSTRAINT FK_arte_final_envios_arte FOREIGN KEY (arte_final_id)
+            REFERENCES dbo.arte_finales(id) ON DELETE CASCADE,
+        CONSTRAINT FK_arte_final_envios_correo FOREIGN KEY (correo_id)
+            REFERENCES dbo.correos(id) ON DELETE SET NULL,
+        CONSTRAINT FK_arte_final_envios_zip FOREIGN KEY (zip_documento_id)
+            REFERENCES dbo.documentos(id) ON DELETE SET NULL
+    );
+END;
+
 IF OBJECT_ID('dbo.comercial_vinculo', 'U') IS NULL
 BEGIN
     CREATE TABLE dbo.comercial_vinculo (

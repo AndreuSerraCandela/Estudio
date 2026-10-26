@@ -69,6 +69,20 @@
         </li>
         {% endfor %}
       </ul>
+      {% if arte.envios %}
+      <ul class="arte-envios">
+        {% for envio in arte.envios %}
+        <li>
+          <span class="muted">{{ envio.fecha.strftime('%d/%m/%Y %H:%M') if envio.fecha else '—' }}</span>
+          Enviado a {{ envio.destinatario }}
+          {% if envio.enviado_por_nombre %}<span class="muted">· {{ envio.enviado_por_nombre }}</span>{% endif %}
+          {% if envio.correo_id %}
+          <a href="{{ url_for('expedientes.ver_correo_expediente', expediente_id=expediente.id, correo_id=envio.correo_id) }}">Ver correo</a>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% endif %}
       {% if arte.aprobacion == 'pendiente' %}
       <form method="post" action="{{ url_for('expedientes.ampliar_arte_final', expediente_id=expediente.id, arte_id=arte.id) }}" enctype="multipart/form-data" class="arte-ampliar">
         {% if expediente.documentos %}
